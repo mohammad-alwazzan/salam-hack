@@ -1,0 +1,30 @@
+{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev:backend": "bun run --watch backend/src/index.ts",
+    "dev:frontend": "cd frontend && bun next dev",
+    "build:frontend": "cd frontend && next build",
+    "start:frontend": "cd frontend && next start"
+  },
+  "dependencies": {
+    "@elysiajs/eden": "^1.4.9",
+    "@elysiajs/openapi": "^1.4.14",
+    "elysia": "latest",
+    "next": "16.2.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "bun-types": "latest",
+    "@biomejs/biome": "2.2.0",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "babel-plugin-react-compiler": "1.0.0",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
