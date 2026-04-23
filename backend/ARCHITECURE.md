@@ -33,6 +33,7 @@ src/
 ```
 
 ### Implementation Standards
+
 1. `core/schema.ts` — The Ground TruthTables define the shapes for the entire app. Use drizzle-zod to bridge DB definitions to API validation instantly.
 ```ts
 import { pgTable, uuid, text, timestamp } from 'drizzle-orm/pg-core';
@@ -51,6 +52,7 @@ export const selectUserSchema = createSelectSchema(users);
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 ```
+
 2. `<feature>.repository.ts` — Concrete Data AccessNo interfaces. Export a singleton. This is the only place where Drizzle query logic lives.
 ```ts
 import { db } from '../../core/db';
@@ -73,7 +75,7 @@ export const userRepository = new UserRepository();
 ```
 
 3. `<feature>.service.ts` — Business LogicImport the repository singleton directly. Handle domain-specific rules here.
-```
+```ts
 import { userRepository } from './user.repository';
 import type { NewUser } from '../../core/schema';
 
@@ -87,8 +89,10 @@ export class UserService {
 
 export const userService = new UserService();
 ```
+
 4. `<feature>.router.ts` — Elysia PluginHandles HTTP concerns. Pass the insertUserSchema directly to the body property for automatic validation and OpenAPI docs.
-```
+
+```ts
 import Elysia from 'elysia';
 import { insertUserSchema, selectUserSchema } from '../../core/schema';
 import { userService } from './user.service';
@@ -99,6 +103,7 @@ export const userRouter = new Elysia({ prefix: '/users' })
     response: selectUserSchema
   });
 ```
+
 ### Rules for Velocity
 |Rule|Implementation|
 |----|--------------|
