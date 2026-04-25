@@ -1,56 +1,59 @@
 # Frontend Architecture
 
 > **Stack:** Next.js · HeroUI · Tailwind CSS · Eden Treaty · TypeScript · Biome
-> **Agent:** Frontend Stylist (Agent B) — Primary Domain: `/frontend`
+> **Agent:** Frontend Stylist (Agent B) — Primary Domain: `/` (repo root)
 
 ---
 
 ## 1. Directory Structure
 
 ```
-frontend/
-├── app/                          # Next.js App Router root
-│   ├── layout.tsx                # Root layout (providers, fonts, global styles)
-│   ├── page.tsx                  # Landing / root page
-│   ├── globals.css               # Tailwind base + CSS custom properties
+├── src/
+│   ├── app/                          # Next.js App Router root
+│   │   ├── layout.tsx                # Root layout (providers, fonts, global styles)
+│   │   ├── page.tsx                  # Landing / root page
+│   │   ├── globals.css               # Tailwind base + CSS custom properties
+│   │   └── (dashboard)/              # Route group – authenticated shell
+│   │       ├── layout.tsx            # Dashboard shell (sidebar, topbar)
+│   │       ├── overview/
+│   │       │   ├── page.tsx
+│   │       │   └── _components/
+│   │       │       ├── StatsCard.tsx
+│   │       │       └── ActivityFeed.tsx
+│   │       └── settings/
+│   │           ├── page.tsx
+│   │           └── _components/
+│   │               └── ProfileForm.tsx
 │   │
-│   └── (dashboard)/              # Route group – authenticated shell
-│       ├── layout.tsx            # Dashboard shell (sidebar, topbar)
-│       ├── overview/
-│       │   ├── page.tsx
-│       │   └── _components/
-│       │       ├── StatsCard.tsx
-│       │       └── ActivityFeed.tsx
-│       └── settings/
-│           ├── page.tsx
-│           └── _components/
-│               └── ProfileForm.tsx
+│   ├── components/                   # ← Shared, reusable components (cross-page)
+│   │   ├── ui/                       # Thin wrappers / compositions over HeroUI
+│   │   │   ├── AppButton.tsx
+│   │   │   ├── AppCard.tsx
+│   │   │   ├── AppInput.tsx
+│   │   │   └── AppModal.tsx
+│   │   ├── layout/
+│   │   │   ├── Sidebar.tsx
+│   │   │   ├── Topbar.tsx
+│   │   │   └── PageShell.tsx
+│   │   └── feedback/
+│   │       ├── EmptyState.tsx
+│   │       ├── ErrorBoundary.tsx
+│   │       └── LoadingSpinner.tsx
+│   │
+│   └── worker/                       # ← Elysia backend (Bun worker)
+│       └── src/
+│           ├── core/
+│           ├── drizzle/
+│           ├── features/
+│           └── index.ts              # Exports `App` type for Eden Treaty
 │
-├── components/                   # ← Shared, reusable components (cross-page)
-│   ├── ui/                       # Thin wrappers / compositions over HeroUI
-│   │   ├── AppButton.tsx
-│   │   ├── AppCard.tsx
-│   │   ├── AppInput.tsx
-│   │   └── AppModal.tsx
-│   ├── layout/
-│   │   ├── Sidebar.tsx
-│   │   ├── Topbar.tsx
-│   │   └── PageShell.tsx
-│   └── feedback/
-│       ├── EmptyState.tsx
-│       ├── ErrorBoundary.tsx
-│       └── LoadingSpinner.tsx
+├── api.ts                            # Eden Treaty client singleton
 │
-├── api.ts // Eden treaty Client
-|
-├── providers/                    # Context / wrapper providers
-│   ├── AppProviders.tsx          # Composes all providers (Query, HeroUI, Theme)
+├── providers/                        # Context / wrapper providers
+│   ├── AppProviders.tsx              # Composes all providers (Query, HeroUI, Theme)
 │   └── ThemeProvider.tsx
 │
-├── types/                        # Frontend-only derived types
-│   └── ui.ts
-│
-├── public/                       # Static assets
+├── public/                           # Static assets
 └── next.config.ts
 ```
 
@@ -72,9 +75,9 @@ frontend/
 ### 3.1 Client Singleton
 
 ```ts
-// lib/eden.ts
+// api.ts (root)
 import { treaty } from "@elysiajs/eden";
-import type { App } from "../../backend/src/index";
+import type { App } from "@worker/src/index";
 
 export const api = treaty<App>(
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
@@ -278,9 +281,9 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 - **Props:** Defined inline via `interface` directly above the component. No barrel `types/props.ts`.
 
 ```ts
-// ✅ — derive from backend
+// ✅ — derive from backend worker
 import type { InferRouteBody } from "@elysiajs/eden";
-import type { App } from "../../backend/src/index";
+import type { App } from "@worker/src/index";
 
 type CreateProjectBody = InferRouteBody<App, "/projects", "post">;
 
@@ -310,7 +313,7 @@ interface CreateProjectBody {
 
 Before building any new page or component that consumes backend data:
 
-- [ ] Confirm backend has exported the latest `App` type from `backend/src/index.ts`
+- [ ] Confirm backend has exported the latest `App` type from `src/worker/src/index.ts`
 - [ ] Check `progress/backend-progress.md` to confirm the relevant endpoint is implemented
 
 If the endpoint is not ready, log a blocker in `progress/status.md` and build the UI shell with mock data using the correct types.
