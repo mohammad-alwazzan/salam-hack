@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev:backend": "bun run --watch backend/src/index.ts",
     "dev": "bun --bun next dev",
-    "build:frontend": "cd frontend && next build",
-    "start:frontend": "cd frontend && next start",
-    "seed": "bun backend/src/core/seed.ts"
+    "dev:backend": "bun run --watch src/worker/src/index.ts",
+    "build": "bun --bun next build",
+    "start": "bun --bun next start",
+    "seed": "bun src/worker/src/core/seed.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.64",

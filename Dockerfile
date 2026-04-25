@@ -1,0 +1,38 @@
+# Stage 1: Install dependencies (native addon compilation requires build tools)
+FROM oven/bun:1 AS deps
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+  python3 \
+  make \
+  g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY package.json bun.lockb ./
+RUN bun install --frozen-lockfile
+
+# Stage 2: Build Next.js
+FROM oven/bun:1 AS builder
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+RUN bun run build
+
+# Stage 3: Production runner (no build tools needed, only runtime libs)
+FROM oven/bun:1 AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/src/worker ./src/worker
+COPY package.json next.config.ts tsconfig.json ./
+
+EXPOSE 3000
+
+CMD ["bun", "run", "start"]
