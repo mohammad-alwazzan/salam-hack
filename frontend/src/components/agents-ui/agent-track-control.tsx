@@ -8,17 +8,17 @@ import {
   useMaybeRoomContext,
   useMediaDeviceSelect,
 } from '@livekit/components-react';
-import { AgentAudioVisualizerBar } from '@/src/components/agents-ui/agent-audio-visualizer-bar';
-import { AgentTrackToggle } from '@/src/components/agents-ui/agent-track-toggle';
+import { AgentAudioVisualizerBar } from '@/components/agents-ui/agent-audio-visualizer-bar';
+import { AgentTrackToggle } from '@/components/agents-ui/agent-track-toggle';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/src/components/ui/select';
-import { toggleVariants } from '@/src/components/ui/toggle';
-import { cn } from '@/frontend/src/lib/utils';
+} from '@/components/ui/select';
+import { toggleVariants } from '@/components/ui/toggle';
+import { cn } from '@/lib/utils';
 
 const selectVariants = cva(
   [

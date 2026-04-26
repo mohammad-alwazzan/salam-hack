@@ -2,13 +2,13 @@
 
 import { useVoiceAssistant } from '@livekit/components-react';
 import { motion, type MotionProps } from 'motion/react';
-import { cn } from '@/frontend/src/lib/utils';
+import { cn } from '@/lib/utils';
 
-import { AgentAudioVisualizerAura } from '@components/agents-ui/agent-audio-visualizer-aura';
-import { AgentAudioVisualizerBar } from '@components/agents-ui/agent-audio-visualizer-bar';
-import { AgentAudioVisualizerGrid } from '@components/agents-ui/agent-audio-visualizer-grid';
-import { AgentAudioVisualizerRadial } from '@components/agents-ui/agent-audio-visualizer-radial';
-import { AgentAudioVisualizerWave } from '@components/agents-ui/agent-audio-visualizer-wave';
+import { AgentAudioVisualizerAura } from '@/components/agents-ui/agent-audio-visualizer-aura';
+import { AgentAudioVisualizerBar } from '@/components/agents-ui/agent-audio-visualizer-bar';
+import { AgentAudioVisualizerGrid } from '@/components/agents-ui/agent-audio-visualizer-grid';
+import { AgentAudioVisualizerRadial } from '@/components/agents-ui/agent-audio-visualizer-radial';
+import { AgentAudioVisualizerWave } from '@/components/agents-ui/agent-audio-visualizer-wave';
 
 const MotionAgentAudioVisualizerAura = motion.create(AgentAudioVisualizerAura);
 const MotionAgentAudioVisualizerBar = motion.create(AgentAudioVisualizerBar);

@@ -2,7 +2,7 @@ import { type Ref, type ComponentProps } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { motion, type MotionProps } from 'motion/react';
 
-import { cn } from '@/frontend/src/lib/utils';
+import { cn } from '@/lib/utils';
 
 const motionAnimationProps = {
   variants: {

@@ -9,7 +9,14 @@ export const payBill = tool({
     bankAccountId: z.number().describe('The ID of the bank account to pay from.'),
   }),
   execute: async ({ billId, bankAccountId }) => {
-    const updatedBill = await billsService.payBill(billId, bankAccountId);
-    return { success: true, bill: updatedBill };
+    try {
+      const updatedBill = await billsService.payBill(billId, bankAccountId);
+      return { success: true, bill: updatedBill };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'An unknown error occurred while paying the bill',
+      };
+    }
   },
 });

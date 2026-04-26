@@ -2,12 +2,20 @@
 
 import { motion } from "motion/react";
 import { Receipt, Calendar, CreditCard, ChevronRight, CheckCircle2, Clock, AlertCircle } from "lucide-react";
-import { cn } from "@/src/lib/utils";
-import { Button } from "@/src/components/ui/button";
-import { Badge } from "@/src/components/ui/badge";
-import type { PostBillsData } from "@/src/gen/api/types.gen";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
-type Bill = PostBillsData['body'] & { id: number };
+type Bill = {
+	id: number;
+	title: string;
+	description?: string | null;
+	category: string;
+	amount: number;
+	currency?: string;
+	dueDate: string;
+	status: "pending" | "paid" | "overdue";
+};
 
 interface BillItemProps {
 	bill: Bill;

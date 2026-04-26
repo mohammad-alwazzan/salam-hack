@@ -8,8 +8,8 @@ import {
   type TrackReferenceOrPlaceholder,
   useMultibandTrackVolume,
 } from '@livekit/components-react';
-import { cn } from '@/frontend/src/lib/utils';
-import { useAgentAudioVisualizerRadialAnimator } from '@/frontend/src/hooks/agents-ui/use-agent-audio-visualizer-radial';
+import { cn } from '@/lib/utils';
+import { useAgentAudioVisualizerRadialAnimator } from '@/hooks/agents-ui/use-agent-audio-visualizer-radial';
 
 export const AgentAudioVisualizerRadialVariants = cva(
   [

@@ -10,8 +10,8 @@ import {
   VideoIcon,
   VideoOffIcon,
 } from 'lucide-react';
-import { Toggle } from '@/src/components/ui/toggle';
-import { cn } from '@/frontend/src/lib/utils';
+import { Toggle } from '@/components/ui/toggle';
+import { cn } from '@/lib/utils';
 
 export const agentTrackToggleVariants = cva(['size-9'], {
   variants: {

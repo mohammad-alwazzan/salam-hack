@@ -6,20 +6,20 @@ import { Track } from 'livekit-client';
 import { Loader, MessageSquareTextIcon, SendHorizontal } from 'lucide-react';
 import { motion, type MotionProps } from 'motion/react';
 
-import { cn } from '@/frontend/src/lib/utils';
-import { AgentDisconnectButton } from '@/src/components/agents-ui/agent-disconnect-button';
-import { AgentTrackControl } from '@/src/components/agents-ui/agent-track-control';
+import { cn } from '@/lib/utils';
+import { AgentDisconnectButton } from '@/components/agents-ui/agent-disconnect-button';
+import { AgentTrackControl } from '@/components/agents-ui/agent-track-control';
 import {
   AgentTrackToggle,
   agentTrackToggleVariants,
-} from '@/src/components/agents-ui/agent-track-toggle';
-import { Button } from '@/src/components/ui/button';
-import { Toggle } from '@/src/components/ui/toggle';
+} from '@/components/agents-ui/agent-track-toggle';
+import { Button } from '@/components/ui/button';
+import { Toggle } from '@/components/ui/toggle';
 import {
   useInputControls,
   usePublishPermissions,
   type UseInputControlsProps,
-} from '@/frontend/src/hooks/agents-ui/use-agent-control-bar';
+} from '@/hooks/agents-ui/use-agent-control-bar';
 
 const LK_TOGGLE_VARIANT_1 = [
   'data-[state=off]:bg-accent data-[state=off]:hover:bg-foreground/10',

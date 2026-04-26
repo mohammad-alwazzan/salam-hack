@@ -18,16 +18,19 @@ export const executeTransfer = tool({
     note: z.string().optional().describe('Optional memo for the transfer'),
   }),
   execute: async (params) => {
-    const result = await transfersService.execute(params);
+    try {
+      const result = await transfersService.execute(params);
 
-    if (!result.success) {
-      return { success: false, error: result.error };
+      return {
+        success: true,
+        account: result.account,
+        transaction: result.transaction,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'An unknown error occurred during transfer',
+      };
     }
-
-    return {
-      success: true,
-      account: result.account,
-      transaction: result.transaction,
-    };
   },
 });

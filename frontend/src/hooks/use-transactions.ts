@@ -1,45 +1,39 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  getTransactionsOptions,
-  postTransactionsMutation,
-  getTransactionsQueryKey,
-  getBudgetQueryKey,
-} from '@/src/gen/api/@tanstack/react-query.gen';
-import type { PostTransactionsData } from '@/src/gen/api/types.gen';
-import type { Transaction } from './use-agent-chat';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getTransactionsOptions, postTransactionsMutation } from "@/gen/api/@tanstack/react-query.gen";
+import type { PostTransactionsData } from "@/gen/api/types.gen";
 
 export function useTransactions() {
   const queryClient = useQueryClient();
 
-  const { data, isLoading, error } = useQuery(getTransactionsOptions());
+  const { data: transactions = [], isLoading, error, refetch } = useQuery(getTransactionsOptions());
 
   const logMutation = useMutation({
     ...postTransactionsMutation(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: getTransactionsQueryKey() });
-      queryClient.invalidateQueries({ queryKey: getBudgetQueryKey() });
-      // Also invalidate bank accounts as balance might have changed
+      queryClient.invalidateQueries({ queryKey: ['getTransactions'] });
+      queryClient.invalidateQueries({ queryKey: ['getBudget'] });
       queryClient.invalidateQueries({ queryKey: ['getBankAccounts'] });
     },
   });
 
-  const handleLogTransaction = async (data: PostTransactionsData['body']) => {
+  const handleLogTransaction = async (transaction: PostTransactionsData['body']) => {
     try {
-      const result = await logMutation.mutateAsync({
-        body: data,
+      const data = await logMutation.mutateAsync({
+        body: transaction
       });
-      return { success: true, transaction: result };
+      return { success: true, transaction: data };
     } catch (err: any) {
       return { success: false, error: err.message };
     }
   };
 
   return {
-    transactions: data as unknown as Transaction[],
+    transactions: transactions as any[],
     isLoading,
-    error,
+    error: error ? error.message : null,
+    refresh: refetch,
     logTransaction: handleLogTransaction,
   };
 }

@@ -1,13 +1,14 @@
 # Frontend Architecture
 
-> **Stack:** Next.js · HeroUI · Tailwind CSS · Eden Treaty · TypeScript · Biome
-> **Agent:** Frontend Stylist (Agent B) — Primary Domain: `/` (repo root)
+> **Stack:** Next.js · shadcn/ui · Tailwind CSS · @hey-api/openapi-ts · TanStack Query · TypeScript · Biome
+> **Agent:** Frontend Stylist (Agent B) — Primary Domain: `frontend/`
 
 ---
 
 ## 1. Directory Structure
 
 ```
+frontend/
 ├── src/
 │   ├── app/                          # Next.js App Router root
 │   │   ├── layout.tsx                # Root layout (providers, fonts, global styles)
@@ -25,36 +26,25 @@
 │   │           └── _components/
 │   │               └── ProfileForm.tsx
 │   │
-│   ├── components/                   # ← Shared, reusable components (cross-page)
-│   │   ├── ui/                       # Thin wrappers / compositions over HeroUI
-│   │   │   ├── AppButton.tsx
-│   │   │   ├── AppCard.tsx
-│   │   │   ├── AppInput.tsx
-│   │   │   └── AppModal.tsx
-│   │   ├── layout/
-│   │   │   ├── Sidebar.tsx
-│   │   │   ├── Topbar.tsx
-│   │   │   └── PageShell.tsx
-│   │   └── feedback/
-│   │       ├── EmptyState.tsx
-│   │       ├── ErrorBoundary.tsx
-│   │       └── LoadingSpinner.tsx
+│   ├── components/                   # Shared, reusable components (cross-page)
+│   │   ├── ui/                       # shadcn/ui primitives (auto-generated, do not edit)
+│   │   └── layout/
+│   │       ├── Sidebar.tsx
+│   │       ├── Topbar.tsx
+│   │       └── PageShell.tsx
 │   │
-│   └── worker/                       # ← Elysia backend (Bun worker)
-│       └── src/
-│           ├── core/
-│           ├── drizzle/
-│           ├── features/
-│           └── index.ts              # Exports `App` type for Eden Treaty
+│   ├── gen/
+│   │   └── api/                      # Auto-generated — DO NOT EDIT
+│   │       ├── @tanstack/
+│   │       │   └── react-query.gen.ts  # Generated query/mutation options
+│   │       └── types.gen.ts          # Generated request/response types
+│   │
+│   └── hooks/                        # Custom hooks wrapping generated query options
+│       ├── use-bills.ts
+│       ├── use-budget.ts
+│       └── use-transactions.ts
 │
-├── api.ts                            # Eden Treaty client singleton
-│
-├── providers/                        # Context / wrapper providers
-│   ├── AppProviders.tsx              # Composes all providers (Query, HeroUI, Theme)
-│   └── ThemeProvider.tsx
-│
-├── public/                           # Static assets
-└── next.config.ts
+└── openapi-ts.config.ts              # Codegen config (input: backend /openapi/json)
 ```
 
 ---
@@ -70,43 +60,62 @@
 
 ---
 
-## 3. Eden Treaty — The Only Data Layer
+## 3. Data Layer — openapi-ts + TanStack Query
 
-### 3.1 Client Singleton
+### 3.1 Codegen
 
-```ts
-// api.ts (root)
-import { treaty } from "@elysiajs/eden";
-import type { App } from "@worker/src/index";
+The API client is fully generated from the backend's OpenAPI schema. Never write manual fetch calls.
 
-export const api = treaty<App>(
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
-);
+```bash
+# Run from frontend/
+bun run generate
+# Reads: http://localhost:3001/openapi/json
+# Writes: src/gen/api/
 ```
 
-`api` is the **single** entry point for all backend communication. Raw `fetch`, `axios`, or any other HTTP primitive is **forbidden** in this codebase.
-
-### 3.2 Usage Pattern — Named Query Functions
-
-Every data operation must live in a **named function** that describes the intent. Anonymous inline calls are not allowed.
+Config lives in `frontend/openapi-ts.config.ts`:
 
 ```ts
-// ✅ Correct — meaningful name, lives in the component or a dedicated hook
-async function fetchUserProfile(userId: string) {
-  const { data, error } = await api.users({ id: userId }).get();
-  if (error) throw error;
-  return data;
-}
+import { defineConfig } from "@hey-api/openapi-ts";
 
-async function submitNewProject(payload: CreateProjectPayload) {
-  const { data, error } = await api.projects.post(payload);
-  if (error) throw error;
-  return data;
-}
+export default defineConfig({
+  input: "http://localhost:3001/openapi/json",
+  output: "src/gen/api",
+  plugins: [{ name: "@tanstack/react-query", queryOptions: true }],
+});
+```
 
-// ❌ Forbidden — raw fetch / anonymous handler
-const res = await fetch("/api/users");
-const handler = async () => { await api.users.get(); }; // no name, no meaning
+### 3.2 Usage Pattern — Custom Hooks
+
+Wrap generated query options in a named hook. Never call generated options inline inside components.
+
+```ts
+// hooks/use-bills.ts
+"use client";
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  getBillsOptions,
+  postBillsMutation,
+} from "@/gen/api/@tanstack/react-query.gen";
+
+export function useBills() {
+  const queryClient = useQueryClient();
+  const query = useQuery(getBillsOptions());
+  const create = useMutation({
+    ...postBillsMutation(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["getBills"] }),
+  });
+  return { ...query, create };
+}
+```
+
+```tsx
+// ❌ Forbidden — raw fetch
+const res = await fetch("/api/bills");
+
+// ❌ Forbidden — generated options used directly in a component without a hook
+const { data } = useQuery(getBillsOptions());
 ```
 
 ---
@@ -123,31 +132,22 @@ const handler = async () => { await api.users.get(); }; // no name, no meaning
 | Radius LG | `rounded-2xl` (16px) | Sheets, drawers |
 | Focus ring | `ring-2 ring-primary/60` | All interactive elements |
 
-### 4.2 Color — HeroUI Semantic Colors Only
+### 4.2 Color — shadcn/ui Semantic Tokens Only
 
-Use HeroUI's semantic color names. Never hardcode hex values in JSX.
+Use CSS variable-based semantic tokens. Never hardcode hex values in JSX.
 
 ```tsx
 // ✅
-<Button color="primary">Save</Button>
-<Chip color="success">Active</Chip>
+<Button variant="default">Save</Button>
+<Badge variant="secondary">Active</Badge>
 
 // ❌
 <button className="bg-[#7C3AED]">Save</button>
 ```
 
-For anything beyond HeroUI's semantic tokens, define surfaces as a CSS-in-JS object and consume it through a typed token helper — no raw CSS files: 
-```ts
-export const surface = {
-  1: "hsl(var(--heroui-background))",
-  2: "hsl(var(--heroui-content1))",
-  3: "hsl(var(--heroui-content2))",
-} as const;
-```
+### 4.3 Theme Mode
 
-### 4.3 Dark Mode
-
-All components are dark-mode-first. Test every new component in both themes. Use `dark:` variants and HeroUI's `darkMode` class strategy set in `tailwind.config.ts`.
+All components are light-mode-first. Do not force `.dark` at app root. Use semantic tokens and optional `dark:` variants only as secondary support.
 
 ---
 
@@ -163,7 +163,7 @@ import { ActivityFeed } from "./_components/ActivityFeed";
 
 export default function OverviewPage() {
   return (
-    <PageShell title="Overview">
+    <PageShell title="Overview" width="default">
       <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard />
       </section>
@@ -173,19 +173,21 @@ export default function OverviewPage() {
 }
 ```
 
-Pages are **server components by default**. Add `"use client"` only where interactivity or browser APIs are required. Prefer pushing `"use client"` down to leaf components.
+Pages are **server components by default**. Add `"use client"` only where interactivity or browser APIs are required. Push `"use client"` down to leaf components.
+
+`PageShell` supports:
+- `width="default"` → `max-w-[760px]`
+- `width="wide"` → `max-w-[1120px]` for chart-heavy pages
 
 ---
 
 ## 6. Component Authoring Standards
 
-### 6.1 Anatomy of a Shared Component
+### 6.1 Shared Component
 
 ```tsx
 // components/ui/AppCard.tsx
-"use client"; // only if needed
-
-import { Card, CardBody, CardHeader } from "@heroui/react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 export interface AppCardProps {
@@ -196,32 +198,30 @@ export interface AppCardProps {
 
 export function AppCard({ title, children, className }: AppCardProps) {
   return (
-    <Card className={cn("bg-content1", className)}>
-      <CardHeader className="text-sm font-semibold text-foreground-600">
-        {title}
+    <Card className={cn(className)}>
+      <CardHeader>
+        <CardTitle className="text-sm font-semibold">{title}</CardTitle>
       </CardHeader>
-      <CardBody>{children}</CardBody>
+      <CardContent>{children}</CardContent>
     </Card>
   );
 }
 ```
 
-### 6.2 Anatomy of a Page-Specific Component with Data
+### 6.2 Page-Specific Component with Data
 
 ```tsx
 // app/(dashboard)/overview/_components/ActivityFeed.tsx
 "use client";
 
-import { Spinner } from "@heroui/react";
-import { useRecentActivity } from "@/hooks/useRecentActivity"; // hook owns Eden call
-import { EmptyState } from "@/components/feedback/EmptyState";
+import { useRecentActivity } from "@/hooks/use-recent-activity";
 
 export function ActivityFeed() {
   const { data: activities, isLoading, isError } = useRecentActivity();
 
-  if (isLoading) return <Spinner />;
-  if (isError) return <EmptyState message="Could not load activity." />;
-  if (!activities?.length) return <EmptyState message="No activity yet." />;
+  if (isLoading) return <p className="text-muted-foreground text-sm">Loading…</p>;
+  if (isError) return <p className="text-destructive text-sm">Could not load activity.</p>;
+  if (!activities?.length) return <p className="text-muted-foreground text-sm">No activity yet.</p>;
 
   return (
     <ul className="space-y-2">
@@ -239,88 +239,58 @@ export function ActivityFeed() {
 
 | State type | Solution |
 |---|---|
-| Server / async | Eden Query |
+| Server / async | TanStack Query (via generated hooks) |
 | Global UI (theme, sidebar open, modals) | React Context in `providers/` |
 | Local / ephemeral | `useState` / `useReducer` inside component |
 | URL state | `useSearchParams` + `useRouter` |
 
-No Zustand, Redux, or Jotai unless explicitly approved. Keep state as close to where it's used as possible.
+No Zustand, Redux, or Jotai unless explicitly approved.
 
 ---
 
-## 8. Providers Setup
+## 8. Type Strategy
 
-```tsx
-// providers/AppProviders.tsx
-"use client";
-
-import { HeroUIProvider } from "@heroui/react";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/lib/query-client";
-import { ThemeProvider } from "./ThemeProvider";
-
-export function AppProviders({ children }: { children: React.ReactNode }) {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <HeroUIProvider>
-        <ThemeProvider>{children}</ThemeProvider>
-      </HeroUIProvider>
-    </QueryClientProvider>
-  );
-}
-```
-
-`AppProviders` is mounted once in `app/layout.tsx`.
-
----
-
-## 9. Type Strategy
-
-- **API types:** Always derived from `App` via Eden Treaty. Never manually redefine what the backend already exports.
+- **API types:** Always derived from `frontend/src/gen/api/types.gen.ts`. Never manually redefine backend shapes.
 - **UI-only types:** Live in `types/ui.ts` (e.g., tab variants, dropdown options).
-- **Props:** Defined inline via `interface` directly above the component. No barrel `types/props.ts`.
+- **Props:** Defined inline via `interface` directly above the component.
 
 ```ts
-// ✅ — derive from backend worker
-import type { InferRouteBody } from "@elysiajs/eden";
-import type { App } from "@worker/src/index";
-
-type CreateProjectBody = InferRouteBody<App, "/projects", "post">;
+// ✅ — derive from generated types
+import type { PostBillsData } from "@/gen/api/types.gen";
+type CreateBillBody = PostBillsData["body"];
 
 // ❌ — manually duplicating a backend shape
-interface CreateProjectBody {
-  name: string;
-  description: string;
-}
+interface CreateBillBody { name: string; amount: number; }
 ```
 
 ---
 
-## 10. Naming Conventions
+## 9. Naming Conventions
 
 | Entity | Convention | Example |
 |---|---|---|
-| Components | PascalCase | `ActivityFeed`, `AppButton` |
-| Hooks | `use` + PascalCase noun | `useUserProfile`, `useRecentActivity` |
-| Eden query functions | verb + noun | `fetchUserProfile`, `submitNewProject`, `deleteTaskById` |
-| Query keys | `[resource, sub?, id?]` | `["projects", "detail", id]` |
-| Files | Match export name | `ActivityFeed.tsx` exports `ActivityFeed` |
+| Components | PascalCase | `ActivityFeed`, `AppCard` |
+| Hooks | `use-` + kebab noun | `use-bills`, `use-budget` |
+| Files | kebab-case for hooks, PascalCase for components | `use-bills.ts`, `ActivityFeed.tsx` |
 | Route groups | kebab-case in `()` | `(dashboard)`, `(auth)` |
 | Page-specific dir | `_components` | `app/overview/_components/` |
 
 ---
-## 11. Eden Sync Checklist
+
+## 10. API Sync Checklist
 
 Before building any new page or component that consumes backend data:
 
-- [ ] Confirm backend has exported the latest `App` type from `src/worker/src/index.ts`
-- [ ] Check `progress/backend-progress.md` to confirm the relevant endpoint is implemented
+- [ ] Confirm the backend endpoint is implemented (check `progress/backend-progress.md`)
+- [ ] Backend is running (`cd backend && bun run dev`)
+- [ ] Re-generate the client (`cd frontend && bun run generate`)
+- [ ] Verify new types/options appear in `src/gen/api/`
 
-If the endpoint is not ready, log a blocker in `progress/status.md` and build the UI shell with mock data using the correct types.
+If the endpoint is not ready, log a blocker in `progress/status.md` and build the UI shell with mock data typed to match the expected generated shape.
 
 ---
 
-## 12. Progress Reporting
+## 11. Progress Reporting
 
 After completing every component or page, Agent B must update:
 
@@ -330,5 +300,6 @@ After completing every component or page, Agent B must update:
 ```md
 <!-- progress/frontend-progress.md example entry -->
 - [x] `app/(dashboard)/overview/page.tsx` — scaffold + layout ✅
-- [x] `_components/StatsCard.tsx` — static shell, awaiting `/stats` endpoint ⏳
+- [x] `hooks/use-bills.ts` — wraps generated getBillsOptions ✅
+- [ ] `_components/StatsCard.tsx` — static shell, awaiting `/stats` endpoint ⏳
 ```

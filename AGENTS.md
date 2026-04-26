@@ -1,7 +1,7 @@
 ## 🌌 Project Overview
-- **Stack:** Elysia (Bun) + SQLite + Next.js + HeroUI.
-- **Architecture:** Single repo — Next.js app lives at the root; Elysia backend runs as a Bun worker at `src/worker/`.
-- **Bridge:** Type-safe Eden Treaty (Frontend imports types from `@worker/src/index.ts` via the `@worker/*` path alias).
+- **Stack:** Elysia (Bun) + SQLite (Drizzle) + Next.js + shadcn/ui.
+- **Architecture:** Monorepo — Next.js frontend lives at `frontend/`; Elysia backend lives at `backend/`.
+- **Bridge:** OpenAPI codegen via `@hey-api/openapi-ts`. Frontend generates typed clients from `backend`'s `/openapi/json` endpoint into `frontend/src/gen/api/`. Data fetching uses TanStack Query with generated query options.
 - **Formatting:** Biome (Format on Save enabled).
 
 ---
@@ -9,45 +9,45 @@
 ## 🛠️ Role Definitions
 
 ### 1. Backend Architect (Agent A)
-- **Primary Domain:** `/src/worker`
-- **Core Skill:** `elysia-master` (Elysia, Bun, SQLite, TypeBox).
+- **Primary Domain:** `backend/`
+- **Core Skill:** `elysiajs` (Elysia, Bun, SQLite, Drizzle).
 - **Deliverables:**
     - Type-safe API endpoints with validation.
-    - Automatic OpenAPI docs (Scalar) at `/openapi`.
-    - **Exported Type:** `export type App = typeof app` in `src/worker/src/index.ts`.
+    - Automatic OpenAPI docs (Scalar) at `/openapi`, JSON schema at `/openapi/json`.
+    - Schema source of truth: `backend/src/drizzle/schema/`.
 - **Reporting:** Update `progress/backend-progress.md` and `progress/status.md` after every feature completion.
 
 ### 2. Frontend Stylist (Agent B)
-- **Primary Domain:** `/` (repo root — Next.js app)
-- **Core Skill:** `heroui-wizard` + `design-skill` (Next.js, Tailwind, HeroUI).
-- **Data Fetching:** **Strictly** use `@elysiajs/eden` treaty via `api.ts` at the root. Manual `fetch` calls are forbidden.
-- **Aesthetic:** High-fidelity UI using HeroUI semantic colors, 8px grid, and dark-mode optimization.
+- **Primary Domain:** `frontend/`
+- **Core Skill:** `ui-ux-pro-max` (Next.js, Tailwind, shadcn/ui).
+- **Data Fetching:** Use TanStack Query with generated hooks from `frontend/src/gen/api/`. Re-generate via `cd frontend && bun run generate` after backend changes. Manual `fetch` calls are forbidden.
+- **Aesthetic:** High-fidelity UI using shadcn/ui components, 8px grid, and dark-mode optimization.
 - **Reporting:** Update `progress/frontend-progress.md` and `progress/status.md` after every component/page completion.
 
 ---
 
 ## 📜 The Three-File Recovery Protocol
 
-To ensure seamless transitions between **Antigravity**, **Claude Code**, and **Copilot**, all agents must maintain:
+To ensure seamless transitions between agents and tools, all agents must maintain:
 
 1. **`progress/status.md` (High-Level):** Current system health, active blockers, and the single "Current Goal." Max 30 lines.
 2. **`progress/backend-progress.md` / `progress/frontend-progress.md` (Task Logs):** Bulleted list of completed sub-tasks for recovery.
-3. **`src/worker/ARCHITECURE.md` (Contract):** Documentation of how the backend worker code is organized, schemas, and endpoint contracts.
-4. **`ARCHITECURE.md` (Contract):** Documentation of UI designs, component structures, state management, and how the frontend code is organized.
+3. **`backend/ARCHITECTURE.md` (Contract):** How the backend is organized — schemas, features, endpoint contracts.
+4. **`frontend/src/ARCHITECURE.md` (Contract):** UI designs, component structures, state management, and frontend code organization.
 
 ---
 
 ## 🚀 Operational Rules
 
-* **Command Execution:** Always use `bun`. Run frontend/root commands from the repo root (`bun [command]`). Run worker-specific commands from the worker directory (`cd src/worker && bun [command]`).
-* **Parallel Safety:** Do not modify files outside your Primary Domain. If a cross-domain change is needed (e.g., a backend type change), log it in `status.md` as a blocker for the other agent.
+* **Command Execution:** Always use `bun`. Run backend commands from `backend/` (`cd backend && bun [command]`). Run frontend commands from `frontend/` (`cd frontend && bun [command]`).
+* **Parallel Safety:** Do not modify files outside your Primary Domain. If a cross-domain change is needed (e.g., a new backend endpoint), log it in `status.md` as a blocker for the other agent.
 * **Formatting:** Biome is the source of truth. If conflicts arise with IDE-specific linters, prioritize `biome.json`.
-* **Eden Sync:** Before building a frontend view, Agent B must verify that the Backend Agent has exported the latest `App` type from `src/worker/src/index.ts`.
+* **API Sync:** Before building a frontend view that needs backend data, confirm the endpoint exists and regenerate the client: `cd frontend && bun run generate`. Check `progress/backend-progress.md` to verify the endpoint is implemented.
 
 ---
 
 ## 🔧 Recovery Instruction for New Sessions
-> *"If the session restarts or tools switch (e.g., moving to Claude Code): Read `progress/status.md` first, then the respective `progress/progress.md`. Resume from the 'Last Known Good State' and check `architecture.md` for code organization."*
+> *"If the session restarts or tools switch: Read `progress/status.md` first, then the respective `progress/progress.md`. Resume from the 'Last Known Good State' and check `backend/ARCHITECTURE.md` or `frontend/src/ARCHITECURE.md` for code organization."*
 
 ---
 
@@ -59,14 +59,14 @@ To ensure seamless transitions between **Antigravity**, **Claude Code**, and **C
 ## 🏗️ System Health
 - **Backend:** ⚪ NOT STARTED
 - **Frontend:** ⚪ NOT STARTED
-- **Eden Bridge:** ⚪ DISCONNECTED
+- **API Client:** ⚪ NOT GENERATED
 
 ## 📍 Last Known Good State
 - Project structure created.
 
 ## 🚧 Blockers / Next Steps
 1. Backend Agent: Setup Elysia + OpenAPI + SQLite Schema.
-2. Frontend Agent: Setup Next.js + HeroUI + Eden Client initialization.
+2. Frontend Agent: Setup Next.js + shadcn/ui + run codegen after backend is up.
 ```
 
 ---

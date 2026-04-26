@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getBillsOptions, postBillsMutation, postBillsByIdPayMutation } from "@/src/gen/api/@tanstack/react-query.gen";
-import type { PostBillsData, PostBillsByIdPayData } from "@/src/gen/api/types.gen";
+import { getBillsOptions, postBillsMutation, postBillsByIdPayMutation } from "@/gen/api/@tanstack/react-query.gen";
+import type { PostBillsData, PostBillsByIdPayData } from "@/gen/api/types.gen";
 
 export function useBills() {
   const queryClient = useQueryClient();

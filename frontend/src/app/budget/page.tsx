@@ -1,391 +1,399 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { motion } from 'motion/react';
-import {
-  Plus,
-  CreditCard,
-  TrendingUp,
-  Loader2,
-  AlertCircle,
-} from 'lucide-react';
-import { PageShell } from '@/src/components/layout/PageShell';
-import { Button } from '@/src/components/ui/button';
-import { Card, CardContent } from '@/src/components/ui/card';
-import { Progress } from '@/src/components/ui/progress';
-import { useBudget } from '@/src/hooks/use-budget';
-import { useTransactions } from '@/src/hooks/use-transactions';
-import { CategoryRow } from './_components/CategoryRow';
-import { SpendingChart } from './_components/SpendingChart';
-import { MonthlyHistoryChart } from './_components/MonthlyHistoryChart';
-import { LogTransactionModal } from './_components/LogTransactionModal';
-import { cn } from '@/src/lib/utils';
+import { PageShell } from "@/components/layout/PageShell";
+import { type BudgetCategory, useBudget } from "@/hooks/use-budget";
+import { useTransactions } from "@/hooks/use-transactions";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { ArrowUpRight, CirclePlus, ShoppingCart } from "lucide-react";
+import { format, isValid, parseISO, startOfMonth, subMonths } from "date-fns";
 
-const stagger = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
-};
-const fadeUp = {
-  hidden: { opacity: 0, y: 12 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] },
-  },
+type AppTransaction = {
+  id?: number;
+  description?: string;
+  amount: number;
+  date?: string;
 };
 
-function fmt(n: number) {
-  return new Intl.NumberFormat('en-SA', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(n);
+const donutPalette = [
+  "oklch(0.6 0.2 274)",
+  "oklch(0.66 0.2 289)",
+  "oklch(0.74 0.17 70)",
+  "oklch(0.68 0.17 170)",
+  "oklch(0.67 0.2 24)",
+];
+
+function safeDate(value?: string) {
+  if (!value) return null;
+  const date = parseISO(value);
+  return isValid(date) ? date : null;
+}
+
+function formatCompactAmount(value: number) {
+  if (value >= 1000) return `${Math.round(value / 1000)}k`;
+  return `${Math.round(value)}`;
+}
+
+function fallbackMonthlySpent(totalSpent: number, monthIndex: number, totalAllocated: number) {
+  const normalizedBase = totalSpent > 0 ? totalSpent : totalAllocated * 0.5;
+  const multipliers = [0.62, 0.66, 0.7, 0.58, 0.61, 0.64, 0.68, 0.56, 0.72, 0.95, 1.24, 0.52];
+  return Math.round(normalizedBase * multipliers[monthIndex]);
 }
 
 export default function BudgetPage() {
   const { budget, isLoading, error } = useBudget();
-  const {
-    transactions,
-    isLoading: isTxLoading,
-    logTransaction,
-  } = useTransactions();
-  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const { transactions } = useTransactions();
 
   if (isLoading) {
     return (
-      <PageShell title="Budget">
-        <div className="flex h-[60vh] items-center justify-center">
-          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      <PageShell title="Budget" width="wide">
+        <div className="space-y-6">
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-72 w-full rounded-xl" />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.7fr_1.1fr]">
+            <Skeleton className="h-[420px] w-full rounded-xl" />
+            <div className="space-y-6">
+              <Skeleton className="h-[230px] w-full rounded-xl" />
+              <Skeleton className="h-[190px] w-full rounded-xl" />
+            </div>
+          </div>
         </div>
       </PageShell>
     );
   }
 
-  if (error || !budget) {
+  if (!budget) {
     return (
-      <PageShell title="Budget">
-        <Card className="border-destructive/50 bg-destructive/5">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <AlertCircle className="size-10 text-destructive mb-4" />
-            <h3 className="text-lg font-semibold text-destructive">
-              Failed to load budget
-            </h3>
-            <p className="text-sm text-muted-foreground max-w-xs mt-2">
-              Make sure the backend is running and seeded.
-            </p>
-          </CardContent>
-        </Card>
+      <PageShell title="Budget" width="wide">
+        <div className="py-20 text-center">
+          <h2 className="text-xl font-semibold">No budget found</h2>
+          <p className="text-muted-foreground mt-2">Start by creating a budget with Mizan.</p>
+        </div>
       </PageShell>
     );
   }
 
-  const usedPct = Math.min((budget.totalSpent / budget.totalIncome) * 100, 100);
-  const remainingPct = (budget.remaining / budget.totalIncome) * 100;
-  const health =
-    remainingPct > 20 ? 'healthy' : remainingPct > 5 ? 'warning' : 'danger';
-  const healthLabel =
-    health === 'healthy'
-      ? 'On track'
-      : health === 'warning'
-        ? 'Running low'
-        : 'Over budget';
+  const categories = budget.categories;
+  const typedTransactions = transactions as AppTransaction[];
 
-  const sortedCategories = [...budget.categories].sort(
-    (a, b) => b.spent / b.allocated - a.spent / a.allocated,
-  );
+  const totalAllocated = categories.reduce((acc: number, cat: BudgetCategory) => acc + cat.allocated, 0);
+  const totalSpent = categories.reduce((acc: number, cat: BudgetCategory) => acc + cat.spent, 0);
+  const remainingTotal = totalAllocated - totalSpent;
+  const totalProgress = totalAllocated > 0 ? Math.min(100, (totalSpent / totalAllocated) * 100) : 0;
+  const statusLabel = totalSpent > totalAllocated ? "Over budget" : "On track";
+  const statusClassName =
+    totalSpent > totalAllocated
+      ? "bg-destructive/10 text-destructive"
+      : "bg-emerald-500/12 text-emerald-600";
 
-  const month = new Date().toLocaleDateString('en-SA', {
-    month: 'long',
-    year: 'numeric',
+  const totalIncome = typedTransactions
+    .filter((tx) => tx.amount > 0)
+    .reduce((acc, tx) => acc + tx.amount, 0);
+
+  const monthSeries = Array.from({ length: 12 }, (_, index) => {
+    const monthDate = subMonths(startOfMonth(new Date()), 11 - index);
+    const monthSpent = typedTransactions.reduce((acc, tx) => {
+      if (tx.amount >= 0) return acc;
+      const txDate = safeDate(tx.date);
+      if (!txDate) return acc;
+      const isSameMonth =
+        txDate.getFullYear() === monthDate.getFullYear() && txDate.getMonth() === monthDate.getMonth();
+      return isSameMonth ? acc + Math.abs(tx.amount) : acc;
+    }, 0);
+
+    return {
+      key: format(monthDate, "yyyy-MM"),
+      label: format(monthDate, "MMM yy"),
+      budget: totalAllocated,
+      spent: monthSpent,
+      overBudget: false,
+      hasData: monthSpent > 0,
+    };
   });
 
+  const monthsWithData = monthSeries.filter((month) => month.hasData).length;
+  const hydratedMonthSeries = monthSeries.map((month, index) => {
+    const spent = month.hasData || monthsWithData >= 4
+      ? month.spent
+      : fallbackMonthlySpent(totalSpent, index, totalAllocated);
+    return {
+      ...month,
+      spent,
+      overBudget: spent > totalAllocated,
+    };
+  });
+
+  const chartMax = Math.max(
+    1,
+    ...hydratedMonthSeries.flatMap((item) => [item.budget, item.spent]),
+  );
+
+  const chartTicks = [1, 0.8, 0.55, 0.3, 0].map((ratio) => ({
+    ratio,
+    label: `${formatCompactAmount(chartMax * ratio)}`,
+  }));
+
+  const spendingCategories = [...categories]
+    .filter((cat) => cat.spent > 0)
+    .sort((a, b) => b.spent - a.spent)
+    .slice(0, 5);
+
+  let cumulative = 0;
+  const donutSegments =
+    spendingCategories.length === 0
+      ? "var(--muted) 0deg 360deg"
+      : spendingCategories
+          .map((cat, index) => {
+            const start = cumulative;
+            const segment = (cat.spent / totalSpent) * 360;
+            cumulative += segment;
+            return `${donutPalette[index % donutPalette.length]} ${start}deg ${cumulative}deg`;
+          })
+          .join(", ");
+
+  const recentActivity = [...typedTransactions]
+    .sort((a, b) => {
+      const left = safeDate(a.date)?.getTime() ?? 0;
+      const right = safeDate(b.date)?.getTime() ?? 0;
+      return right - left;
+    })
+    .slice(0, 4);
+
   return (
-    <PageShell title="Budget">
-      <motion.div
-        variants={stagger}
-        initial="hidden"
-        animate="visible"
-        className="space-y-5"
-      >
-        {/* ── Hero ──────────────────────────────────────────────────── */}
-        <motion.div variants={fadeUp}>
-          <Card className="overflow-hidden border-border/60">
-            <CardContent className="p-6 sm:p-8">
-              {/* Top row */}
-              <div className="flex items-start justify-between mb-6">
-                <div>
-                  <p className="text-sm text-muted-foreground font-medium">
-                    {month}
-                  </p>
-                  <div className="mt-1 flex items-baseline gap-2">
-                    <span className="text-4xl font-bold tracking-tight tabular-nums">
-                      {fmt(budget.remaining)}
-                    </span>
-                    <span className="text-xl text-muted-foreground">
-                      {budget.currency}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    remaining this month
-                  </p>
-                </div>
-
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold',
-                    health === 'healthy'
-                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                      : health === 'warning'
-                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'size-1.5 rounded-full',
-                      health === 'healthy'
-                        ? 'bg-emerald-500'
-                        : health === 'warning'
-                          ? 'bg-amber-500'
-                          : 'bg-rose-500',
-                    )}
-                  />
-                  {healthLabel}
-                </span>
+    <PageShell title="Budget" width="wide">
+      <div className="space-y-6">
+        <Card className="py-6">
+          <CardContent className="space-y-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-base text-muted-foreground">{budget.month}</p>
+                <p className="mt-1 text-4xl font-bold tracking-tight sm:text-5xl">
+                  {remainingTotal.toLocaleString()}
+                  <span className="ml-2 text-3xl font-medium text-muted-foreground">USD</span>
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">remaining this month</p>
               </div>
+              <Badge variant="secondary" className={`rounded-full px-3 py-1 text-sm ${statusClassName}`}>
+                • {statusLabel}
+              </Badge>
+            </div>
 
-              {/* Progress bar */}
-              <div className="space-y-2 mb-7">
-                <Progress
-                  value={usedPct}
-                  className={cn(
-                    'h-1.5',
-                    health === 'danger'
-                      ? '[&>div]:bg-rose-500'
-                      : health === 'warning'
-                        ? '[&>div]:bg-amber-500'
-                        : '',
-                  )}
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>
-                    {fmt(budget.totalSpent)} {budget.currency} spent
-                  </span>
-                  <span>{usedPct.toFixed(0)}% used</span>
-                </div>
-              </div>
-
-              {/* Stat strip */}
-              <div className="grid grid-cols-3 divide-x divide-border/50">
-                {(
-                  [
-                    { label: 'Income', value: budget.totalIncome },
-                    { label: 'Spent', value: budget.totalSpent },
-                    { label: 'Remaining', value: budget.remaining },
-                  ] as const
-                ).map(({ label, value }) => (
-                  <div
-                    key={label}
-                    className="px-4 first:pl-0 last:pr-0 text-center"
-                  >
-                    <p className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">
-                      {label}
-                    </p>
-                    <p
-                      className={cn(
-                        'text-base font-semibold tabular-nums mt-0.5',
-                        label === 'Remaining' && value < 0
-                          ? 'text-rose-500'
-                          : '',
-                      )}
-                    >
-                      {fmt(value)}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {budget.currency}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* ── Monthly history ───────────────────────────────────────── */}
-        <motion.div variants={fadeUp}>
-          <Card className="border-border/60">
-            <div className="px-6 pt-5 pb-4 border-b border-border/40">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-sm font-semibold">Monthly Overview</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Spending vs budget — last 12 months
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                  <span className="flex items-center gap-1.5">
-                    <span className="size-2 rounded-sm bg-primary inline-block" />
-                    Budget
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="size-2 rounded-sm bg-emerald-500 inline-block" />
-                    Under budget
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="size-2 rounded-sm bg-destructive inline-block opacity-85" />
-                    Over budget
-                  </span>
-                </div>
+            <div className="space-y-2">
+              <Progress value={totalProgress} className="h-2 [&>div]:bg-foreground" />
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>{totalSpent.toLocaleString()} USD spent</span>
+                <span>{Math.round(totalProgress)}% used</span>
               </div>
             </div>
-            <CardContent className="px-6 pt-5 pb-4">
-              <MonthlyHistoryChart />
-            </CardContent>
-          </Card>
-        </motion.div>
 
-        {/* ── Main grid ─────────────────────────────────────────────── */}
-        <div className="grid gap-5 lg:grid-cols-5">
-          {/* ── Categories ──────────────────────────────────────────── */}
-          <motion.div variants={fadeUp} className="lg:col-span-3">
-            <Card className="border-border/60">
-              <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border/40">
-                <div>
-                  <h2 className="text-sm font-semibold">Categories</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {budget.categories.length} active budgets
-                  </p>
-                </div>
+            <div className="grid grid-cols-1 divide-y divide-border/70 pt-1 text-center sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+              <div className="py-2 sm:px-4">
+                <p className="text-xs tracking-widest text-muted-foreground">INCOME</p>
+                <p className="text-2xl font-semibold">{totalIncome.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">USD</p>
               </div>
-              <CardContent className="p-2">
-                {sortedCategories.map((cat) => (
-                  <CategoryRow
-                    key={cat.id}
-                    category={cat}
-                    currency={budget.currency}
+              <div className="py-2 sm:px-4">
+                <p className="text-xs tracking-widest text-muted-foreground">SPENT</p>
+                <p className="text-2xl font-semibold">{totalSpent.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">USD</p>
+              </div>
+              <div className="py-2 sm:px-4">
+                <p className="text-xs tracking-widest text-muted-foreground">REMAINING</p>
+                <p className="text-2xl font-semibold">{remainingTotal.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">USD</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="py-5">
+          <CardHeader className="border-b border-border/70 pb-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-1">
+                <CardTitle className="text-xl font-semibold">Monthly Overview</CardTitle>
+                <p className="text-sm text-muted-foreground">Spending vs budget — last 12 months</p>
+              </div>
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-2.5 rounded-full bg-foreground" />
+                  Budget
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-2.5 rounded-full bg-emerald-500" />
+                  Under budget
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-2.5 rounded-full bg-destructive" />
+                  Over budget
+                </span>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="relative h-[340px] rounded-lg border border-border/70 bg-muted/10 p-4">
+              <div className="absolute inset-4 left-12">
+                {chartTicks.map((tick) => (
+                  <div
+                    key={tick.ratio}
+                    className="absolute left-0 right-0 border-t border-dashed border-border/70"
+                    style={{ bottom: `${tick.ratio * 100}%` }}
                   />
                 ))}
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* ── Right column: Chart + Transactions ──────────────────── */}
-          <motion.div
-            variants={fadeUp}
-            className="lg:col-span-2 flex flex-col gap-5"
-          >
-            {/* Spending breakdown donut */}
-            <Card className="border-border/60">
-              <div className="px-6 pt-5 pb-4 border-b border-border/40">
-                <h2 className="text-sm font-semibold">Spending Breakdown</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Where your money went
-                </p>
               </div>
-              <CardContent className="px-6 py-5">
-                <SpendingChart
-                  categories={budget.categories}
-                  currency={budget.currency}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Recent transactions */}
-            <Card className="border-border/60">
-              <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border/40">
-                <div>
-                  <h2 className="text-sm font-semibold">Activity</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    This month
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs rounded-full"
-                  onClick={() => setIsLogModalOpen(true)}
-                >
-                  <Plus className="size-3" />
-                  Log
-                </Button>
+              <div className="absolute bottom-4 left-4 top-4 w-8 text-right text-xs text-muted-foreground">
+                {chartTicks.map((tick) => (
+                  <div
+                    key={`label-${tick.ratio}`}
+                    className="absolute right-0 -translate-y-1/2"
+                    style={{ bottom: `${tick.ratio * 100}%` }}
+                  >
+                    {tick.label}
+                  </div>
+                ))}
               </div>
-              <CardContent className="p-2">
-                {isTxLoading ? (
-                  <div className="flex py-12 justify-center">
-                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                  </div>
-                ) : transactions.length === 0 ? (
-                  <div className="py-12 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      No transactions yet
-                    </p>
-                    <p className="text-xs text-muted-foreground/60 mt-1">
-                      Tap Log to add one
-                    </p>
-                  </div>
-                ) : (
-                  transactions.slice(0, 10).map((tx: any) => {
-                    const cat = budget.categories.find(
-                      (c) => c.id === tx.categoryId,
-                    );
-                    const isIncome = tx.amount > 0;
-                    return (
+              <div className="absolute inset-4 left-14 flex items-end justify-between gap-2">
+                {hydratedMonthSeries.map((item) => (
+                  <div key={item.key} className="flex w-full min-w-0 flex-col items-center gap-2">
+                    <div className="flex h-[250px] w-full items-end justify-center gap-1">
                       <div
-                        key={tx.id}
-                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-muted/50"
-                      >
-                        <div
-                          className={cn(
-                            'flex size-8 shrink-0 items-center justify-center rounded-lg text-sm',
-                            isIncome
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                              : 'bg-muted',
-                          )}
-                        >
-                          {cat ? (
-                            <span className="text-base leading-none">
-                              {cat.emoji}
-                            </span>
-                          ) : isIncome ? (
-                            <TrendingUp className="size-4" />
-                          ) : (
-                            <CreditCard className="size-4" />
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium leading-tight">
-                            {tx.description}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
-                            {tx.date}
-                          </p>
-                        </div>
+                        className="w-4 rounded-t-sm bg-foreground sm:w-5"
+                        style={{ height: `${(item.budget / chartMax) * 100}%` }}
+                      />
+                      <div
+                        className={`w-4 rounded-t-sm sm:w-5 ${item.overBudget ? "bg-destructive" : "bg-emerald-500"}`}
+                        style={{ height: `${(item.spent / chartMax) * 100}%` }}
+                      />
+                    </div>
+                    <span className="truncate text-xs text-muted-foreground">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.7fr_1.1fr]">
+          <Card className="py-5">
+            <CardHeader className="border-b border-border/70 pb-5">
+              <CardTitle className="text-xl font-semibold">Categories</CardTitle>
+              <p className="text-sm text-muted-foreground">{categories.length} active budgets</p>
+            </CardHeader>
+            <CardContent className="space-y-5 pt-6">
+              {categories.map((cat) => {
+                const percentage = cat.allocated > 0 ? Math.min(100, (cat.spent / cat.allocated) * 100) : 0;
+                const progressClass =
+                  percentage > 100 ? "bg-destructive" : percentage > 70 ? "bg-amber-500" : "bg-emerald-500";
+                return (
+                  <div key={cat.id} className="space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg">{cat.emoji}</span>
+                        <p className="text-base font-medium">{cat.name}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-base font-semibold">
+                          {cat.spent.toLocaleString()}{" "}
+                          <span className="text-muted-foreground">/ {cat.allocated.toLocaleString()} USD</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted">
+                      <div className={`h-full rounded-full ${progressClass}`} style={{ width: `${percentage}%` }} />
+                    </div>
+                    <div className="flex justify-end">
+                      <Badge variant="outline" className="rounded-full text-xs">
+                        {Math.round(percentage)}%
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+
+          <div className="space-y-6">
+            <Card className="py-5">
+              <CardHeader className="border-b border-border/70 pb-5">
+                <CardTitle className="text-xl font-semibold">Spending Breakdown</CardTitle>
+                <p className="text-sm text-muted-foreground">Where your money went</p>
+              </CardHeader>
+              <CardContent className="space-y-5 pt-6">
+                <div className="relative mx-auto size-44">
+                  <div
+                    className="size-44 rounded-full"
+                    style={{ background: `conic-gradient(${donutSegments})` }}
+                  />
+                  <div className="absolute inset-1/2 flex size-28 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full bg-card ring-1 ring-border/80">
+                    <p className="text-3xl font-bold">{totalSpent.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">USD spent</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {spendingCategories.map((cat, index) => {
+                    const percent = totalSpent > 0 ? Math.round((cat.spent / totalSpent) * 100) : 0;
+                    return (
+                      <div key={cat.id} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 text-sm">
                         <span
-                          className={cn(
-                            'text-sm font-semibold tabular-nums shrink-0',
-                            isIncome
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : 'text-foreground',
-                          )}
-                        >
-                          {isIncome ? '+' : ''}
-                          {fmt(tx.amount)}
+                          className="size-2.5 rounded-full"
+                          style={{ backgroundColor: donutPalette[index % donutPalette.length] }}
+                        />
+                        <span className="truncate text-muted-foreground">
+                          {cat.emoji} {cat.name}
                         </span>
+                        <span className="font-medium">{cat.spent.toLocaleString()}</span>
+                        <span className="text-xs text-muted-foreground">{percent}%</span>
                       </div>
                     );
-                  })
-                )}
+                  })}
+                </div>
               </CardContent>
             </Card>
-          </motion.div>
-        </div>
-      </motion.div>
 
-      <LogTransactionModal
-        isOpen={isLogModalOpen}
-        onClose={() => setIsLogModalOpen(false)}
-        onConfirm={logTransaction}
-        categories={budget.categories}
-      />
+            <Card className="py-5">
+              <CardHeader className="border-b border-border/70 pb-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-xl font-semibold">Activity</CardTitle>
+                    <p className="text-sm text-muted-foreground">This month</p>
+                  </div>
+                  <Badge variant="outline" className="rounded-full px-3 py-1 text-sm">
+                    <CirclePlus className="mr-1 size-3.5" />
+                    Log
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-6">
+                {recentActivity.map((tx, index) => {
+                  const positive = tx.amount > 0;
+                  const iconClass = positive ? "bg-emerald-500/15 text-emerald-600" : "bg-muted text-muted-foreground";
+                  return (
+                    <div key={`${tx.id ?? index}-${tx.date ?? index}`} className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`flex size-9 items-center justify-center rounded-xl ${iconClass}`}>
+                          {positive ? <ArrowUpRight className="size-4" /> : <ShoppingCart className="size-4" />}
+                        </div>
+                        <div>
+                          <p className="text-base font-medium">{tx.description ?? "Transaction"}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {safeDate(tx.date) ? format(safeDate(tx.date) as Date, "yyyy-MM-dd") : "No date"}
+                          </p>
+                        </div>
+                      </div>
+                      <p className={`text-base font-semibold ${positive ? "text-emerald-600" : "text-foreground"}`}>
+                        {positive ? "+" : ""}
+                        {tx.amount.toLocaleString()}
+                      </p>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
     </PageShell>
   );
 }

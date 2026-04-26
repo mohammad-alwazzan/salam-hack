@@ -1,4 +1,4 @@
-# Salam Agent
+# Mizan Agent
 
 An AI voice assistant with real-time chat, built with LiveKit (voice sessions), Google Gemini (streaming AI), and a full-stack TypeScript monolith.
 

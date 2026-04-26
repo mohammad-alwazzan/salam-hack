@@ -20,8 +20,8 @@ import {
 import {
   type Coordinate,
   useAgentAudioVisualizerGridAnimator,
-} from '@/frontend/src/hooks/agents-ui/use-agent-audio-visualizer-grid';
-import { cn } from '@/frontend/src/lib/utils';
+} from '@/hooks/agents-ui/use-agent-audio-visualizer-grid';
+import { cn } from '@/lib/utils';
 
 function cloneSingleChild(
   children: ReactNode | ReactNode[],

@@ -9,7 +9,7 @@ import {
 import { Track } from 'livekit-client';
 import { AnimatePresence, motion, type MotionProps } from 'motion/react';
 
-import { cn } from '@/frontend/src/lib/utils';
+import { cn } from '@/lib/utils';
 import { AudioVisualizer } from './audio-visualizer';
 
 const ANIMATION_TRANSITION: MotionProps['transition'] = {

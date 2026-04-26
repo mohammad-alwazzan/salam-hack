@@ -5,15 +5,14 @@ import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
 } from 'ai';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getBankAccountsQueryKey,
   getBillsQueryKey,
-  getBudgetCurrentQueryKey,
+  getBudgetQueryKey,
   getTransactionsQueryKey,
-  getAlertsQueryKey,
-} from '@/src/gen/api/@tanstack/react-query.gen';
+} from '@/gen/api/@tanstack/react-query.gen';
 
 // ── Shared primitives ─────────────────────────────────────────────────────────
 
@@ -178,20 +177,22 @@ export function useAgentChat() {
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     onToolCall({ toolCall }) {
       const tool = toolCall as AgentToolCall;
-
-      if (tool.toolName === 'showOptions') {
-        setCurrentTool(tool);
-      }
+      setCurrentTool(tool);
 
       if (MUTATION_TOOLS.has(tool.toolName)) {
         queryClient.invalidateQueries({ queryKey: getBankAccountsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getBillsQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getBudgetCurrentQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getBudgetQueryKey() });
         queryClient.invalidateQueries({ queryKey: getTransactionsQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getAlertsQueryKey() });
       }
     },
   });
+
+  useEffect(() => {
+    if (status !== 'ready') return;
+    if (currentTool?.toolName === 'showOptions') return;
+    setCurrentTool(null);
+  }, [status, currentTool]);
 
   return {
     messages,

@@ -3,13 +3,19 @@ import { z } from 'zod';
 
 export const showOptions = tool({
   description:
-    'Use this to provide the user with a set of quick actions or options they can select. This should be used when there are multiple logical next steps (e.g., "Would you like to pay this bill now or see your budget impact first?").',
+    'Use this to provide the user with a set of quick-reply buttons they can tap. Use when there are multiple logical next steps (e.g., "Would you like to pay this bill now or see your budget impact first?").',
   inputSchema: z.object({
-    prompt: z.string().describe('The message to show the user alongside the options.'),
-    options: z.array(z.string()).describe('The labels for the buttons to show the user.'),
+    title: z.string().describe('A short prompt shown above the buttons, e.g. "What would you like to do?"'),
+    options: z
+      .array(
+        z.object({
+          label: z.string().describe('The button label shown to the user.'),
+          value: z.string().describe('The machine-readable value sent when the user taps this option.'),
+        }),
+      )
+      .describe('The list of options to display as buttons.'),
   }),
-  execute: async ({ prompt, options }) => {
-    // This tool is primarily for UI feedback, but we return the structured data
-    return { prompt, options };
+  execute: async ({ title, options }) => {
+    return { title, options };
   },
 });

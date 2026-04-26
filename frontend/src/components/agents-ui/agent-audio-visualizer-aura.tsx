@@ -8,9 +8,9 @@ import {
   type TrackReferenceOrPlaceholder,
 } from '@livekit/components-react';
 
-import { ReactShaderToy } from '@components/agents-ui/react-shader-toy';
-import { useAgentAudioVisualizerAura } from '@/frontend/src/hooks/agents-ui/use-agent-audio-visualizer-aura';
-import { cn } from '@/frontend/src/lib/utils';
+import { ReactShaderToy } from '@/components/agents-ui/react-shader-toy';
+import { useAgentAudioVisualizerAura } from '@/hooks/agents-ui/use-agent-audio-visualizer-aura';
+import { cn } from '@/lib/utils';
 
 const DEFAULT_COLOR = '#1FD5F9';
 

@@ -17,11 +17,16 @@ export const bankAccountsService = {
   },
 
   async deduct(id: number, amount: number) {
+    await this.checkBalance(id, amount);
+    return bankAccountsRepository.updateBalance(id, -amount);
+  },
+  
+  async checkBalance(id: number, amount: number) {
     const account = await this.getById(id);
     if (account.balance < amount) {
       throw new Error(`Insufficient balance in account ${account.name}`);
     }
-    return bankAccountsRepository.updateBalance(id, -amount);
+    return account;
   },
   
   async add(id: number, amount: number) {
