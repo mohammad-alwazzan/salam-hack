@@ -1,6 +1,6 @@
 # use the official Bun image
 # see https://hub.docker.com/r/oven/bun/tags for all supported tags
-FROM oven/bun:1.1 as base
+FROM oven/bun:latest as base
 WORKDIR /usr/src/app
 
 # install dependencies into temp directory
@@ -21,16 +21,16 @@ FROM base AS prerelease
 COPY --from=install /temp/dev/node_modules node_modules
 COPY . .
 
-# [optional] tests & build
-# ENV NODE_ENV=production
-# RUN bun test
-# RUN bun run build
-
 # copy production dependencies and source code into final image
 FROM base AS release
 COPY --from=install /temp/prod/node_modules node_modules
 COPY --from=prerelease /usr/src/app/src src
 COPY --from=prerelease /usr/src/app/package.json .
+
+# Seeding step
+# Note: This runs during the image build process. 
+# If you want it to run every time the container starts, move it to a script.
+RUN bun run src/seed.ts
 
 # run the app
 USER bun
