@@ -6,7 +6,7 @@ WORKDIR /usr/src/app
 # install dependencies into temp directory
 # this will cache them and speed up future builds
 FROM base AS install
-RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y python3 make g++ python-is-python3 && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /temp/dev
 COPY package.json bun.lock /temp/dev/
 RUN cd /temp/dev && bun install --frozen-lockfile
@@ -23,7 +23,7 @@ COPY --from=install /temp/dev/node_modules node_modules
 COPY . .
 
 # Run migration and seeding in the same step
-RUN bun x drizzle-kit migrate
+# We use bun x drizzle-kit push to apply schema changes to the local sqlite.db
 RUN bun x drizzle-kit push
 RUN bun run src/seed.ts
 
