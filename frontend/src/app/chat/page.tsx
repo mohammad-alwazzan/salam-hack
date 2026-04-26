@@ -1,10 +1,13 @@
 'use client';
 
 import { useAgentChat, ShowOptionsInput } from '@/hooks/use-agent-chat';
-import { FinancialStrip } from '@/components/agents-ui/financial-strip';
+import { useBudget } from '@/hooks/use-budget';
+import { useBankAccounts } from '@/hooks/use-bank-accounts';
 import { OptionsSelector } from '@/components/agents-ui/options-selector';
 import { SendHorizontal, Loader2, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useRef, useEffect, useState, useMemo } from 'react';
 import type { UIMessage } from 'ai';
@@ -32,6 +35,8 @@ export default function ChatPage() {
     currentTool,
     addToolOutput,
   } = useAgentChat();
+  const { budget } = useBudget();
+  const { accounts } = useBankAccounts();
 
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -81,6 +86,26 @@ export default function ChatPage() {
     [uiMessages],
   );
 
+  const budgetSummary = useMemo(() => {
+    if (!budget) return null;
+    const totalAllocated = budget.categories.reduce((acc, cat) => acc + cat.allocated, 0);
+    const totalSpent = budget.categories.reduce((acc, cat) => acc + cat.spent, 0);
+    const remaining = totalAllocated - totalSpent;
+    const usedPct = totalAllocated > 0 ? Math.min(100, (totalSpent / totalAllocated) * 100) : 0;
+    const topCategories = [...budget.categories]
+      .sort((a, b) => b.spent - a.spent)
+      .slice(0, 3);
+    const totalBalance = accounts.reduce((acc, account) => acc + account.balance, 0);
+    return {
+      month: budget.month,
+      totalAllocated,
+      totalSpent,
+      remaining,
+      totalBalance,
+      usedPct,
+    };
+  }, [budget, accounts]);
+
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -113,12 +138,37 @@ export default function ChatPage() {
         </div>
       </header>
 
-      <div className="shrink-0">
-        <FinancialStrip />
-      </div>
-
       <main ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
         <div className="mx-auto w-full max-w-2xl space-y-4">
+          {budgetSummary && (
+            <div className="rounded-2xl border border-border/70 bg-card p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm text-muted-foreground">{budgetSummary.month}</p>
+                  <p className="mt-1 text-base font-medium text-muted-foreground">Budget Snapshot</p>
+                </div>
+                <Badge variant="outline" className="rounded-full">
+                  {Math.round(budgetSummary.usedPct)}% used
+                </Badge>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl border border-border/70 bg-background p-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Balance</p>
+                  <p className="mt-1 text-sm font-semibold">{budgetSummary.totalBalance.toLocaleString()} USD</p>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Expenses</p>
+                  <p className="mt-1 text-sm font-semibold">{budgetSummary.totalSpent.toLocaleString()} USD</p>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total</p>
+                  <p className="mt-1 text-sm font-semibold">{budgetSummary.totalAllocated.toLocaleString()} USD</p>
+                </div>
+              </div>
+              <Progress value={budgetSummary.usedPct} className="mt-4 h-2" />
+            </div>
+          )}
+
           {!hasMessages && (
             <div className="rounded-2xl border border-border/70 bg-card p-5 sm:p-6">
               <p className="text-lg font-semibold">How can I help with your finances?</p>

@@ -13,6 +13,7 @@
 - [x] `use-bank-accounts.ts` ✅
 - [x] `use-transfers.ts` ✅
 - [x] `use-agent-chat.ts` (Integrated with backend) ✅
+- [x] `use-voice-tool-state.ts` (LiveKit data-channel tool state + cache invalidation) ✅
 
 ## Pages
 - [x] `dashboard/page.tsx` (Overview, Balances, Recent TX, Budget, Bills) ✅
@@ -21,13 +22,15 @@
 - [x] `transactions/page.tsx` (History, Search) ✅
 - [x] `agent/page.tsx` (Voice/Chat interface) ✅
 - [x] `budget/page.tsx` redesigned to match reference layout (summary card + monthly chart + categories + donut breakdown + activity) ✅
+- [x] `chat/page.tsx` UX refresh: removed listening/speaking-state visuals, added empty-state prompt launcher, improved message timeline layout ✅
+- [x] `budget/page.tsx` chart fix: corrected axis/grid overlap and progress indicator styling to reflect true usage ✅
 
 ## Components
 - [x] `layout/PageShell.tsx` (Navigation, Header) ✅
 - [x] `ui/` primitives (minimal Skeleton, Input, Dialog, Badge, etc.) ✅
-- [x] `agent/_components/` (FinancialStrip, ToolResultRenderer, OptionsSelector) ✅
+- [x] `agent/_components/` (FinancialStrip, ToolCallBanner, OptionsSelector) ✅
 - [x] `agents-ui/approval-sheet.tsx` ✅
-- [x] `voice/_components/ToolResultRenderer.tsx` now renders from live `currentTool` state (not message parsing) ✅
+- [x] `voice/_components/ToolCallBanner.tsx` wired to LiveKit `tool_start`/`tool_end` events ✅
 
 ## Next Steps
 - [x] Light-theme baseline applied (`THEME.md` updated + forced `.dark` removed from AppProviders) ✅

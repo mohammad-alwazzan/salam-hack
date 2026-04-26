@@ -41,6 +41,27 @@ async function seed() {
   ];
 
   let lastMonthId = 0;
+  const monthlySpendingProfiles: Record<
+    string,
+    {
+      groceries: number;
+      remittances?: number;
+      transport?: number;
+      wedding?: number;
+    }
+  > = {
+    '2025-05': { groceries: 1680, remittances: 2400, transport: 620 },
+    '2025-06': { groceries: 2100, remittances: 4300, transport: 1800, wedding: 2800 }, // over budget
+    '2025-07': { groceries: 1720, remittances: 2300, transport: 700 },
+    '2025-08': { groceries: 1850, remittances: 2550, transport: 780 },
+    '2025-09': { groceries: 1760, remittances: 2250, transport: 650 },
+    '2025-10': { groceries: 1820, remittances: 2380, transport: 760 },
+    '2025-11': { groceries: 1790, remittances: 2460, transport: 730 },
+    '2025-12': { groceries: 1980, remittances: 2550, transport: 950 },
+    '2026-01': { groceries: 1690, remittances: 2280, transport: 680 },
+    '2026-02': { groceries: 1930, remittances: 2620, transport: 1020 },
+    '2026-03': { groceries: 1980, remittances: 3600, transport: 1700, wedding: 3400 }, // over budget
+  };
 
   for (const month of months) {
     const budgetMonth = await db.insert(schema.budgetMonths).values({
@@ -94,12 +115,16 @@ async function seed() {
       },
     ]).returning();
 
-    // Add some historical transactions for each month to show "spent" progress
+    // Add historical transactions for each month so charts show real trends.
     if (month !== '2026-04') {
+      const profile = monthlySpendingProfiles[month] ?? { groceries: 1700 };
+      const remittanceCatId = categories[0].id;
       const foodCatId = categories[2].id;
+      const transportCatId = categories[3].id;
+      const weddingCatId = categories[4].id;
       const rentCatId = categories[1].id;
 
-      await db.insert(schema.transactions).values([
+      const historicalTransactions: Array<typeof schema.transactions.$inferInsert> = [
         {
           description: `Rent - ${month}`,
           amount: -4000,
@@ -110,13 +135,48 @@ async function seed() {
         },
         {
           description: `Groceries - ${month}`,
-          amount: -(1500 + Math.random() * 400),
+          amount: -profile.groceries,
           bankAccountId: checkingId,
           categoryId: foodCatId,
           source: 'manual',
           date: `${month}-15T15:30:00Z`,
-        }
-      ]);
+        },
+      ];
+
+      if (profile.remittances) {
+        historicalTransactions.push({
+          description: `Family Transfer - ${month}`,
+          amount: -profile.remittances,
+          bankAccountId: checkingId,
+          categoryId: remittanceCatId,
+          source: 'manual',
+          date: `${month}-07T11:45:00Z`,
+        });
+      }
+
+      if (profile.transport) {
+        historicalTransactions.push({
+          description: `Transport - ${month}`,
+          amount: -profile.transport,
+          bankAccountId: checkingId,
+          categoryId: transportCatId,
+          source: 'manual',
+          date: `${month}-21T13:20:00Z`,
+        });
+      }
+
+      if (profile.wedding) {
+        historicalTransactions.push({
+          description: `Wedding Fund - ${month}`,
+          amount: -profile.wedding,
+          bankAccountId: checkingId,
+          categoryId: weddingCatId,
+          source: 'manual',
+          date: `${month}-25T10:10:00Z`,
+        });
+      }
+
+      await db.insert(schema.transactions).values(historicalTransactions);
     }
   }
 

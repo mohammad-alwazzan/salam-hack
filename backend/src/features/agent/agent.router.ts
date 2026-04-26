@@ -5,9 +5,10 @@ import { convertToModelMessages } from 'ai';
 export const agentRouter = new Elysia({ prefix: '/agent' }).group('', (app) =>
   app.post(
     '/chat',
-    async ({ body }) => {
+    async ({ body, request }) => {
       const result = await agentService.streamChat(
         await convertToModelMessages(body.messages),
+        request.signal,
       );
       return result.toUIMessageStreamResponse();
     },

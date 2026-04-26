@@ -181,7 +181,7 @@ export default function BudgetPage() {
             </div>
 
             <div className="space-y-2">
-              <Progress value={totalProgress} className="h-2 [&>div]:bg-foreground" />
+              <Progress value={totalProgress} className="h-2 [&_[data-slot=progress-indicator]]:bg-foreground" />
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>{totalSpent.toLocaleString()} USD spent</span>
                 <span>{Math.round(totalProgress)}% used</span>
@@ -232,31 +232,31 @@ export default function BudgetPage() {
             </div>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="relative h-[340px] rounded-lg border border-border/70 bg-muted/10 p-4">
-              <div className="absolute inset-4 left-12">
-                {chartTicks.map((tick) => (
-                  <div
-                    key={tick.ratio}
-                    className="absolute left-0 right-0 border-t border-dashed border-border/70"
-                    style={{ bottom: `${tick.ratio * 100}%` }}
-                  />
-                ))}
-              </div>
-              <div className="absolute bottom-4 left-4 top-4 w-8 text-right text-xs text-muted-foreground">
-                {chartTicks.map((tick) => (
-                  <div
-                    key={`label-${tick.ratio}`}
-                    className="absolute right-0 -translate-y-1/2"
-                    style={{ bottom: `${tick.ratio * 100}%` }}
-                  >
-                    {tick.label}
-                  </div>
-                ))}
-              </div>
-              <div className="absolute inset-4 left-14 flex items-end justify-between gap-2">
-                {hydratedMonthSeries.map((item) => (
-                  <div key={item.key} className="flex w-full min-w-0 flex-col items-center gap-2">
-                    <div className="flex h-[250px] w-full items-end justify-center gap-1">
+            <div className="relative h-[340px] rounded-lg border border-border/70 bg-muted/10">
+              <div className="absolute inset-x-4 top-4 bottom-12">
+                <div className="absolute inset-y-0 left-10 right-0">
+                  {chartTicks.map((tick) => (
+                    <div
+                      key={tick.ratio}
+                      className="absolute left-0 right-0 border-t border-dashed border-border/70"
+                      style={{ bottom: `${tick.ratio * 100}%` }}
+                    />
+                  ))}
+                </div>
+                <div className="absolute inset-y-0 left-0 w-9 text-right text-xs text-muted-foreground">
+                  {chartTicks.map((tick) => (
+                    <div
+                      key={`label-${tick.ratio}`}
+                      className="absolute right-0 -translate-y-1/2 bg-muted/10 pr-1"
+                      style={{ bottom: `${tick.ratio * 100}%` }}
+                    >
+                      {tick.label}
+                    </div>
+                  ))}
+                </div>
+                <div className="absolute inset-y-0 left-10 right-0 flex items-end justify-between gap-2">
+                  {hydratedMonthSeries.map((item) => (
+                    <div key={item.key} className="flex h-full w-full min-w-0 items-end justify-center gap-1">
                       <div
                         className="w-4 rounded-t-sm bg-foreground sm:w-5"
                         style={{ height: `${(item.budget / chartMax) * 100}%` }}
@@ -266,8 +266,14 @@ export default function BudgetPage() {
                         style={{ height: `${(item.spent / chartMax) * 100}%` }}
                       />
                     </div>
-                    <span className="truncate text-xs text-muted-foreground">{item.label}</span>
-                  </div>
+                  ))}
+                </div>
+              </div>
+              <div className="absolute left-14 right-4 bottom-3 flex items-center justify-between gap-2">
+                {hydratedMonthSeries.map((item) => (
+                  <span key={`${item.key}-label`} className="w-full min-w-0 truncate text-center text-xs text-muted-foreground">
+                    {item.label}
+                  </span>
                 ))}
               </div>
             </div>

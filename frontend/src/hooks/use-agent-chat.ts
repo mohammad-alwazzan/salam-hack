@@ -178,6 +178,8 @@ export function useAgentChat() {
     onToolCall({ toolCall }) {
       const tool = toolCall as AgentToolCall;
       setCurrentTool(tool);
+      console.log(`${tool.toolName} was called`);
+      console.log(tool.input);
 
       if (MUTATION_TOOLS.has(tool.toolName)) {
         queryClient.invalidateQueries({ queryKey: getBankAccountsQueryKey() });
@@ -188,11 +190,7 @@ export function useAgentChat() {
     },
   });
 
-  useEffect(() => {
-    if (status !== 'ready') return;
-    if (currentTool?.toolName === 'showOptions') return;
-    setCurrentTool(null);
-  }, [status, currentTool]);
+  console.log(messages);
 
   return {
     messages,

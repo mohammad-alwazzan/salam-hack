@@ -6,7 +6,6 @@ import { useAgent, useSessionContext } from '@livekit/components-react';
 import { useSession } from '@livekit/components-react';
 import { TokenSource } from 'livekit-client';
 import { AnimatePresence, motion } from 'motion/react';
-import { useAgentChat } from '@/hooks/use-agent-chat';
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -16,10 +15,10 @@ import {
   type ApprovalData,
 } from '@/components/agents-ui/approval-sheet';
 import { OptionsSelector } from '@/components/agents-ui/options-selector';
-import { ShowOptionsInput } from '@/hooks/use-agent-chat';
 import { FinancialStrip } from '@/components/agents-ui/financial-strip';
 import { Orb, StatusBadge, type AgentStateKind } from '@/components/agents-ui/orb';
-import { ToolResultRenderer } from './_components/ToolResultRenderer';
+import { useVoiceToolState } from '@/hooks/use-voice-tool-state';
+import { ToolCallBanner } from './_components/ToolCallBanner';
 
 // ─── Pre-connect Landing ──────────────────────────────────────────────────────
 
@@ -92,32 +91,19 @@ function ActiveSessionView() {
   const [pendingApproval, setPendingApproval] = useState<ApprovalData | null>(
     null,
   );
+  const [pendingOptions, setPendingOptions] = useState<{
+    title: string;
+    options: Array<{ label: string; value: string }>;
+    resolve: (result: { label: string; value: string }) => void;
+  } | null>(null);
   const resolveApproval = useRef<((approved: boolean) => void) | null>(null);
 
-  const { setCurrentTool, error, currentTool, addToolOutput } = useAgentChat();
+  const { currentTool } = useVoiceToolState();
 
-  const handleOptionSelect = async (label: string, option: string) => {
-    if (currentTool?.toolName === 'showOptions') {
-      setCurrentTool(null);
-      await addToolOutput({
-        tool: currentTool.toolName,
-        toolCallId: currentTool.toolCallId,
-        output: {
-          label,
-          option,
-        },
-      });
-    }
+  const handleOptionSelect = (label: string, value: string) => {
+    pendingOptions?.resolve({ label, value });
+    setPendingOptions(null);
   };
-
-  const showOptionsData =
-    currentTool?.toolName === 'showOptions'
-      ? (currentTool.input as ShowOptionsInput)
-      : null;
-
-  useEffect(() => {
-    if (error) console.log(error);
-  }, [error]);
 
   useEffect(() => {
     room.registerRpcMethod('show_approval', async (data) => {
@@ -129,7 +115,25 @@ function ActiveSessionView() {
         };
       });
     });
-    return () => room.unregisterRpcMethod('show_approval');
+    room.registerRpcMethod('show_options', async (data) => {
+      const payload = JSON.parse(data.payload) as {
+        title: string;
+        options: Array<{ label: string; value: string }>;
+      };
+
+      return new Promise<string>((resolve) => {
+        setPendingOptions({
+          title: payload.title,
+          options: payload.options,
+          resolve: (result) => resolve(JSON.stringify(result)),
+        });
+      });
+    });
+
+    return () => {
+      room.unregisterRpcMethod('show_approval');
+      room.unregisterRpcMethod('show_options');
+    };
   }, [room]);
 
   const handleAccept = () => {
@@ -176,8 +180,11 @@ function ActiveSessionView() {
 
       {/* Voice control bar */}
       <div className="shrink-0 px-4 pb-8 pt-2 relative">
-        <ToolResultRenderer currentTool={currentTool} />
-        <OptionsSelector data={showOptionsData} onSelect={handleOptionSelect} />
+        <ToolCallBanner currentTool={currentTool} />
+        <OptionsSelector
+          data={pendingOptions ? { title: pendingOptions.title, options: pendingOptions.options } : null}
+          onSelect={handleOptionSelect}
+        />
         <AgentControlBar
           variant="livekit"
           controls={{
@@ -223,7 +230,9 @@ function SessionView() {
 
 export default function VoicePage() {
   const tokenSource = useMemo(() => TokenSource.endpoint('/api/token'), []);
-  const session = useSession(tokenSource, { agentName: 'Dakota-db7' });
+  const session = useSession(tokenSource, {
+    agentName: process.env.NEXT_PUBLIC_LIVEKIT_AGENT_NAME ?? 'mizan-agent',
+  });
 
   useEffect(() => {
     return () => {

@@ -1,29 +1,97 @@
-import { AccessToken } from "livekit-server-sdk";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
+import {
+  AccessToken,
+  type AccessTokenOptions,
+  type VideoGrant,
+} from 'livekit-server-sdk';
+import { RoomConfiguration } from '@livekit/protocol';
 
-export async function GET(req: NextRequest) {
-  const room = req.nextUrl.searchParams.get("room");
-  const identity = req.nextUrl.searchParams.get("identity") || "user-" + Math.random().toString(36).slice(2, 7);
+type ConnectionDetails = {
+  serverUrl: string;
+  roomName: string;
+  participantName: string;
+  participantToken: string;
+};
 
-  if (!room) {
-    return NextResponse.json({ error: 'Missing room parameter' }, { status: 400 });
+// NOTE: you are expected to define the following environment variables in `.env.local`:
+const API_KEY = process.env.LIVEKIT_API_KEY;
+const API_SECRET = process.env.LIVEKIT_API_SECRET;
+const LIVEKIT_URL = process.env.LIVEKIT_URL;
+
+// don't cache the results
+export const revalidate = 0;
+
+export async function POST(req: Request) {
+  try {
+    if (LIVEKIT_URL === undefined) {
+      throw new Error('LIVEKIT_URL is not defined');
+    }
+    if (API_KEY === undefined) {
+      throw new Error('LIVEKIT_API_KEY is not defined');
+    }
+    if (API_SECRET === undefined) {
+      throw new Error('LIVEKIT_API_SECRET is not defined');
+    }
+
+    // Parse room config from request body.
+    const body = await req.json();
+    const roomConfig = body?.room_config
+      ? RoomConfiguration.fromJson(body.room_config, {
+          ignoreUnknownFields: true,
+        })
+      : new RoomConfiguration();
+
+    // Generate participant token
+    const participantName = 'user';
+    const participantIdentity = `voice_assistant_user_${Math.floor(Math.random() * 10_000)}`;
+    const roomName = `voice_assistant_room_${Math.floor(Math.random() * 10_000)}`;
+
+    const participantToken = await createParticipantToken(
+      { identity: participantIdentity, name: participantName },
+      roomName,
+      roomConfig,
+    );
+
+    // Return connection details
+    const data: ConnectionDetails = {
+      serverUrl: LIVEKIT_URL,
+      roomName,
+      participantName,
+      participantToken,
+    };
+    const headers = new Headers({
+      'Cache-Control': 'no-store',
+    });
+    return NextResponse.json(data, { headers });
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error(error);
+      return new NextResponse(error.message, { status: 500 });
+    }
   }
+}
 
-  const apiKey = process.env.LIVEKIT_API_KEY;
-  const apiSecret = process.env.LIVEKIT_API_SECRET;
-
-  if (!apiKey || !apiSecret) {
-    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
-  }
-
-  const at = new AccessToken(apiKey, apiSecret, {
-    identity: identity,
+function createParticipantToken(
+  userInfo: AccessTokenOptions,
+  roomName: string,
+  roomConfig: RoomConfiguration | undefined,
+): Promise<string> {
+  const at = new AccessToken(API_KEY, API_SECRET, {
+    ...userInfo,
+    ttl: '15m',
   });
-
-  at.addGrant({
+  const grant: VideoGrant = {
+    room: roomName,
     roomJoin: true,
-    room: room,
-  });
+    canPublish: true,
+    canPublishData: true,
+    canSubscribe: true,
+  };
+  at.addGrant(grant);
 
-  return NextResponse.json({ token: await at.toJwt() });
+  if (roomConfig) {
+    at.roomConfig = roomConfig;
+  }
+
+  return at.toJwt();
 }

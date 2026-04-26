@@ -1,0 +1,14 @@
+[project]
+name = "salam-hack-voice-agent"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "livekit-agents[silero,turn-detector]>=1.5.6",
+    "livekit>=1.1.5",
+    "openai>=2.32.0",
+    "httpx>=0.28.1",
+    "python-dotenv>=1.2.2",
+]
+
+[dependency-groups]
+dev = []

@@ -37,3 +37,4 @@
 - [x] Added `checkBalance` to `bankAccountsService`.
 - [x] Added error handling (try-catch) to agent tools for better user feedback.
 - [x] Cleaned up redundant schema files (`bills 1.ts`).
+- [x] Updated `src/seed.ts` with deterministic 12-month spending profiles and explicit over-budget months (`2025-06`, `2026-03`) for analytics chart realism.

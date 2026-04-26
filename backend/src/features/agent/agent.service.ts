@@ -1,5 +1,5 @@
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import { createGroq, GroqLanguageModelOptions } from '@ai-sdk/groq';
+import { createGroq } from '@ai-sdk/groq';
 import { streamText, ModelMessage, stepCountIs } from 'ai';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -30,7 +30,7 @@ let SYSTEM_PROMPT = readFileSync(
 );
 
 export class AgentService {
-  async streamChat(messages: ModelMessage[]) {
+  async streamChat(messages: ModelMessage[], abortSignal?: AbortSignal) {
     const [accounts, budget, alerts] = await Promise.all([
       bankAccountsService.getAllAccounts(),
       budgetService.getCurrentBudget(),
@@ -45,6 +45,9 @@ export class AgentService {
       model: groq('openai/gpt-oss-120b'),
       system: contextualPrompt,
       messages,
+      abortSignal,
+      stopWhen: stepCountIs(50),
+      maxRetries: 3,
       tools: {
         getFinancialSummary,
         logTransaction,
@@ -54,16 +57,9 @@ export class AgentService {
         showOptions,
         payBill,
       },
-      // providerOptions: {
-      //   groq: {
-      //     reasoningFormat: 'parsed',
-      //     reasoningEffort: 'default',
-      //   } satisfies GroqLanguageModelOptions,
-      // },
       toolChoice: 'auto',
-      stopWhen: stepCountIs(20),
       onError({ error }) {
-        console.log(error);
+        console.error('Stream error:', error);
       },
     });
   }
