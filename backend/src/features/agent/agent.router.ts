@@ -1,23 +1,20 @@
-import Elysia from 'elysia';
+import Elysia, { t } from 'elysia';
 import { agentService } from './agent.service';
-import { z } from 'zod';
-import { convertToModelMessages } from 'ai';
 
-export const agentRouter = new Elysia({ prefix: '/agent' }).post(
-  '/chat',
-  async ({ body }) => {
-    const messages = await convertToModelMessages(body.messages);
-
-    const result = agentService.streamChat(messages);
-    return (await result).toUIMessageStreamResponse();
-  },
-  {
-    body: z.object({
-      messages: z.array(z.any()),
-    }),
-    detail: {
-      summary: 'Stream a chat response from Gemini',
-      tags: ['Agent'],
-    },
-  },
-);
+export const agentRouter = new Elysia({ prefix: '/agent' })
+  .group('', (app) => 
+    app
+      .post('/chat', async ({ body }) => {
+        const result = await agentService.streamChat(body.messages);
+        return result.toUIMessageStreamResponse();
+      }, {
+        body: t.Object({
+          messages: t.Array(t.Any(), { description: 'Array of chat messages' })
+        }),
+        detail: {
+          summary: 'Chat with Mizan',
+          description: 'Streams a conversation with Mizan, the financial AI agent.',
+          tags: ['Agent']
+        }
+      })
+  );

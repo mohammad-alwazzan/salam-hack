@@ -1,6 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { bankAccountService } from '../../bankAccounts/bankAccounts.service';
+import { bankAccountsService } from '../../bankAccounts/bankAccounts.service';
 import { budgetService } from '../../budget/budget.service';
 import { alertsService } from '../../alerts/alerts.service';
 
@@ -10,7 +10,7 @@ export const getFinancialSummary = tool({
   inputSchema: z.object({}),
   execute: async () => {
     const [accounts, budget, alerts] = await Promise.all([
-      bankAccountService.getAllAccounts(),
+      bankAccountsService.getAllAccounts(),
       budgetService.getCurrentBudget(),
       alertsService.getAlerts(),
     ]);

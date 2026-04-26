@@ -1,10 +1,12 @@
-import { defineConfig } from '@hey-api/openapi-ts';
+import { defineConfig } from "@hey-api/openapi-ts";
 
 export default defineConfig({
-  input: 'http://localhost:3001/openapi/json',
-  output: {
-    path: 'src/gen/api',
-    postProcess: ['biome:format'],
-  },
-  plugins: ['@hey-api/typescript', '@hey-api/sdk', '@tanstack/react-query'],
+	input: "http://localhost:3001/openapi/json",
+	output: "src/gen/api",
+	plugins: [
+		{
+			name: "@tanstack/react-query",
+			queryOptions: true,
+		},
+	],
 });

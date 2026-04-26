@@ -12,7 +12,7 @@ import {
   showOptions,
   payBill,
 } from './tools';
-import { bankAccountService } from '../bankAccounts/bankAccounts.service';
+import { bankAccountsService } from '../bankAccounts/bankAccounts.service';
 import { budgetService } from '../budget/budget.service';
 import { alertsService } from '../alerts/alerts.service';
 
@@ -32,7 +32,7 @@ let SYSTEM_PROMPT = readFileSync(
 export class AgentService {
   async streamChat(messages: ModelMessage[]) {
     const [accounts, budget, alerts] = await Promise.all([
-      bankAccountService.getAllAccounts(),
+      bankAccountsService.getAllAccounts(),
       budgetService.getCurrentBudget(),
       alertsService.getAlerts(),
     ]);
