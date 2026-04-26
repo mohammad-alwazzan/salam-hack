@@ -38,3 +38,4 @@
 - [x] Added error handling (try-catch) to agent tools for better user feedback.
 - [x] Cleaned up redundant schema files (`bills 1.ts`).
 - [x] Updated `src/seed.ts` with deterministic 12-month spending profiles and explicit over-budget months (`2025-06`, `2026-03`) for analytics chart realism.
+- [x] `livekit-voice-agent/agent.py`: financial mutation tools (`pay_bill`, `execute_transfer`) now use awaited frontend RPC confirmation (`perform_rpc`) before backend execution.

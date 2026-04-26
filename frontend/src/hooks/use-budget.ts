@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getBudgetOptions, getBudgetImpactOptions, postBudgetMutation } from "@/gen/api/@tanstack/react-query.gen";
+import { getBudgetOptions, getBudgetImpactOptions, postBudgetMutation, getBudgetQueryKey } from "@/gen/api/@tanstack/react-query.gen";
 import type { PostBudgetData } from "@/gen/api/types.gen";
 
 export type BudgetCategory = {
@@ -31,7 +31,7 @@ export function useBudget() {
   const upsertMutation = useMutation({
     ...postBudgetMutation(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['getBudget'] });
+      queryClient.invalidateQueries({ queryKey: getBudgetQueryKey() });
     },
   });
 

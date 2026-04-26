@@ -1,7 +1,15 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getBillsOptions, postBillsMutation, postBillsByIdPayMutation } from "@/gen/api/@tanstack/react-query.gen";
+import { 
+  getBillsOptions, 
+  postBillsMutation, 
+  postBillsByIdPayMutation,
+  getBillsQueryKey,
+  getBankAccountsQueryKey,
+  getBudgetQueryKey,
+  getTransactionsQueryKey
+} from "@/gen/api/@tanstack/react-query.gen";
 import type { PostBillsData, PostBillsByIdPayData } from "@/gen/api/types.gen";
 
 export function useBills() {
@@ -12,16 +20,17 @@ export function useBills() {
   const createMutation = useMutation({
     ...postBillsMutation(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['getBills'] });
+      queryClient.invalidateQueries({ queryKey: getBillsQueryKey() });
     },
   });
 
   const payMutation = useMutation({
     ...postBillsByIdPayMutation(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['getBills'] });
-      // Also invalidate bank accounts as balance might have changed
-      queryClient.invalidateQueries({ queryKey: ['getBankAccounts'] });
+      queryClient.invalidateQueries({ queryKey: getBillsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getBankAccountsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getBudgetQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getTransactionsQueryKey() });
     },
   });
 

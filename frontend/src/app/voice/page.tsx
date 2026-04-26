@@ -18,7 +18,9 @@ import { OptionsSelector } from '@/components/agents-ui/options-selector';
 import { FinancialStrip } from '@/components/agents-ui/financial-strip';
 import { Orb, StatusBadge, type AgentStateKind } from '@/components/agents-ui/orb';
 import { useVoiceToolState } from '@/hooks/use-voice-tool-state';
+import { useTranscript } from '@/hooks/use-transcript';
 import { ToolCallBanner } from './_components/ToolCallBanner';
+import { cn } from '@/lib/utils';
 
 // ─── Pre-connect Landing ──────────────────────────────────────────────────────
 
@@ -91,31 +93,47 @@ function ActiveSessionView() {
   const [pendingApproval, setPendingApproval] = useState<ApprovalData | null>(
     null,
   );
+  const [pendingFrontendConfirm, setPendingFrontendConfirm] = useState<{
+    title: string;
+    description: string;
+    details: Record<string, unknown>;
+    resolve: (confirmed: boolean) => void;
+  } | null>(null);
   const [pendingOptions, setPendingOptions] = useState<{
     title: string;
     options: Array<{ label: string; value: string }>;
     resolve: (result: { label: string; value: string }) => void;
   } | null>(null);
   const resolveApproval = useRef<((approved: boolean) => void) | null>(null);
+  const transcriptEndRef = useRef<HTMLDivElement>(null);
 
   const { currentTool } = useVoiceToolState();
+  const transcriptEntries = useTranscript();
 
   const handleOptionSelect = (label: string, value: string) => {
     pendingOptions?.resolve({ label, value });
     setPendingOptions(null);
   };
 
+  // Auto-scroll transcript to latest message
+  useEffect(() => {
+    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [transcriptEntries]);
+
   useEffect(() => {
     room.registerRpcMethod('show_approval', async (data) => {
+      console.log('[Mizan RPC] show_approval received', data.payload);
       const payload = JSON.parse(data.payload) as ApprovalData;
       setPendingApproval(payload);
       return new Promise<string>((resolve) => {
         resolveApproval.current = (approved: boolean) => {
+          console.log('[Mizan RPC] show_approval resolved', { approved });
           resolve(JSON.stringify({ approved }));
         };
       });
     });
     room.registerRpcMethod('show_options', async (data) => {
+      console.log('[Mizan RPC] show_options received', data.payload);
       const payload = JSON.parse(data.payload) as {
         title: string;
         options: Array<{ label: string; value: string }>;
@@ -125,7 +143,50 @@ function ActiveSessionView() {
         setPendingOptions({
           title: payload.title,
           options: payload.options,
-          resolve: (result) => resolve(JSON.stringify(result)),
+          resolve: (result) => {
+            console.log('[Mizan RPC] show_options resolved', result);
+            resolve(JSON.stringify(result));
+          },
+        });
+      });
+    });
+    room.registerRpcMethod('confirmPayment', async (data) => {
+      const payload = JSON.parse(data.payload) as {
+        amount?: number;
+        billId?: number;
+        bankAccountId?: number;
+      };
+
+      return new Promise<string>((resolve) => {
+        setPendingFrontendConfirm({
+          title: 'Confirm Payment',
+          description: 'Do you want to proceed with this payment?',
+          details: {
+            amount: payload.amount ?? 'Unknown',
+            billId: payload.billId ?? 'Unknown',
+            bankAccountId: payload.bankAccountId ?? 'Unknown',
+          },
+          resolve: (confirmed) => resolve(JSON.stringify({ confirmed })),
+        });
+      });
+    });
+    room.registerRpcMethod('confirmTransfer', async (data) => {
+      const payload = JSON.parse(data.payload) as {
+        amount?: number;
+        recipient?: string;
+        fromBankAccountId?: number;
+      };
+
+      return new Promise<string>((resolve) => {
+        setPendingFrontendConfirm({
+          title: 'Confirm Transfer',
+          description: 'Do you want to execute this transfer?',
+          details: {
+            amount: payload.amount ?? 'Unknown',
+            recipient: payload.recipient ?? 'Unknown',
+            fromBankAccountId: payload.fromBankAccountId ?? 'Unknown',
+          },
+          resolve: (confirmed) => resolve(JSON.stringify({ confirmed })),
         });
       });
     });
@@ -133,16 +194,28 @@ function ActiveSessionView() {
     return () => {
       room.unregisterRpcMethod('show_approval');
       room.unregisterRpcMethod('show_options');
+      room.unregisterRpcMethod('confirmPayment');
+      room.unregisterRpcMethod('confirmTransfer');
     };
   }, [room]);
 
   const handleAccept = () => {
+    if (pendingFrontendConfirm) {
+      pendingFrontendConfirm.resolve(true);
+      setPendingFrontendConfirm(null);
+      return;
+    }
     resolveApproval.current?.(true);
     resolveApproval.current = null;
     setPendingApproval(null);
   };
 
   const handleCancel = () => {
+    if (pendingFrontendConfirm) {
+      pendingFrontendConfirm.resolve(false);
+      setPendingFrontendConfirm(null);
+      return;
+    }
     resolveApproval.current?.(false);
     resolveApproval.current = null;
     setPendingApproval(null);
@@ -173,10 +246,50 @@ function ActiveSessionView() {
       {/* Financial Strip */}
       <FinancialStrip />
 
-      {/* Orb */}
-      <div className="flex-1 flex items-center justify-center">
-        <Orb state={agentState as AgentStateKind} />
+      {/* Orb — compact when transcript has content */}
+      <div className={cn(
+        'flex items-center justify-center shrink-0 transition-all duration-500',
+        transcriptEntries.length > 0 ? 'py-3' : 'flex-1',
+      )}>
+        <Orb
+          state={agentState as AgentStateKind}
+          size={transcriptEntries.length > 0 ? 90 : 280}
+        />
       </div>
+
+      {/* Live transcript */}
+      {transcriptEntries.length > 0 && (
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 space-y-2 [scrollbar-width:thin]">
+          <AnimatePresence initial={false}>
+            {transcriptEntries.map((entry) => (
+              <motion.div
+                key={entry.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: entry.final ? 1 : 0.5, y: 0 }}
+                transition={{ duration: 0.2 }}
+                className={cn(
+                  'flex flex-col max-w-[80%]',
+                  entry.isAgent ? 'items-start self-start' : 'items-end self-end ml-auto',
+                )}
+              >
+                <span className="text-[10px] font-medium text-muted-foreground mb-0.5 px-1">
+                  {entry.participantName}
+                </span>
+                <div className={cn(
+                  'rounded-2xl px-3.5 py-2 text-sm leading-snug',
+                  entry.isAgent
+                    ? 'bg-muted text-foreground rounded-tl-sm'
+                    : 'bg-primary text-primary-foreground rounded-tr-sm',
+                  !entry.final && 'opacity-60',
+                )}>
+                  {entry.text}
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+          <div ref={transcriptEndRef} />
+        </div>
+      )}
 
       {/* Voice control bar */}
       <div className="shrink-0 px-4 pb-8 pt-2 relative">
@@ -200,7 +313,15 @@ function ActiveSessionView() {
       </div>
 
       <ApprovalSheet
-        approval={pendingApproval}
+        approval={
+          pendingFrontendConfirm
+            ? {
+                title: pendingFrontendConfirm.title,
+                description: pendingFrontendConfirm.description,
+                details: pendingFrontendConfirm.details,
+              }
+            : pendingApproval
+        }
         onAccept={handleAccept}
         onCancel={handleCancel}
       />

@@ -37,13 +37,13 @@ export const budgetRepository = {
     return results[0];
   },
 
-  async getSpentByCategory(budgetMonthId: number) {
-    // This is a simplified join. In a real app, you'd filter transactions by the month's date range.
+  async getSpentByCategory(budgetMonthId: number, month: string) {
     return db.select({
       categoryId: transactions.categoryId,
       spent: sql<number>`abs(sum(case when ${transactions.amount} < 0 then ${transactions.amount} else 0 end))`,
     })
     .from(transactions)
+    .where(sql`${transactions.date} LIKE ${month + '%'}`)
     .groupBy(transactions.categoryId);
   }
 };

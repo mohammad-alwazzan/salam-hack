@@ -15,7 +15,9 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.64",
     "@ai-sdk/groq": "^3.0.35",
+    "@ai-sdk/openai-compatible": "^2.0.41",
     "@elysia/cors": "^1.4.2",
     "@elysiajs/cors": "^1.4.2",
     "@elysiajs/openapi": "^1.4.15",

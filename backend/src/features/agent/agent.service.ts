@@ -1,5 +1,6 @@
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { createGroq } from '@ai-sdk/groq';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamText, ModelMessage, stepCountIs } from 'ai';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -15,6 +16,7 @@ import {
 import { bankAccountsService } from '../bankAccounts/bankAccounts.service';
 import { budgetService } from '../budget/budget.service';
 import { alertsService } from '../alerts/alerts.service';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -22,6 +24,10 @@ const openrouter = createOpenRouter({
 
 const groq = createGroq({
   apiKey: process.env.GROQ_API_KEY,
+});
+
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
 });
 
 let SYSTEM_PROMPT = readFileSync(
@@ -42,7 +48,9 @@ export class AgentService {
       `\n\nHere is the financial summary: ${JSON.stringify({ accounts, budget, alerts })}`;
 
     return streamText({
-      model: groq('openai/gpt-oss-120b'),
+      // model: groq('openai/gpt-oss-120b'),
+      // model: google('gemini-2.5-flash-lite'),
+      model: openrouter('nvidia/nemotron-3-super-120b-a12b:free'),
       system: contextualPrompt,
       messages,
       abortSignal,

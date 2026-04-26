@@ -192,6 +192,10 @@ export function useAgentChat() {
 
   console.log(messages);
 
+  useEffect(() => {
+    if (error) console.log(error);
+  }, [error]);
+
   return {
     messages,
     sendMessage,

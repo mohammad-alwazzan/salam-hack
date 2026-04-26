@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getBankAccountsOptions, postBankAccountsMutation } from "@/gen/api/@tanstack/react-query.gen";
+import { getBankAccountsOptions, postBankAccountsMutation, getBankAccountsQueryKey } from "@/gen/api/@tanstack/react-query.gen";
 import type { PostBankAccountsData } from "@/gen/api/types.gen";
 
 export function useBankAccounts() {
@@ -12,7 +12,7 @@ export function useBankAccounts() {
   const createMutation = useMutation({
     ...postBankAccountsMutation(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['getBankAccounts'] });
+      queryClient.invalidateQueries({ queryKey: getBankAccountsQueryKey() });
     },
   });
 

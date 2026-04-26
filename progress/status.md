@@ -1,5 +1,5 @@
 # Project Status
-**Current Goal:** Voice integration migration to LiveKit-native tool state + RPC options flow
+**Current Goal:** Voice RPC round-trip confirmations for financial tools
 
 ## 🏗️ System Health
 - **Backend (backend/):** 🟢 HEALTHY — All routers, services, and agent tools implemented & seeded.
@@ -24,6 +24,8 @@
 - Voice tool UI migrated from `ToolResultRenderer` to `ToolCallBanner`.
 - Frontend `.env.local` updated to new LiveKit credentials + `NEXT_PUBLIC_LIVEKIT_AGENT_NAME`.
 - `/api/token?room=test` returns 200 using updated credentials.
+- Agent financial tools now block on frontend confirmation RPC responses before executing mutations.
+- Frontend voice UI now handles `confirmPayment` and `confirmTransfer` RPC methods and returns `{ confirmed }` to the agent.
 
 ## ✅ Voice Integration Checklist
 - [x] Task 1 — frontend env updated
@@ -36,5 +38,5 @@
 
 ## 🚧 Blockers / Next Steps
 1. Run manual voice smoke test against live agent to verify `tool_start`/`tool_end` banner lifecycle.
-2. Verify `show_options` end-to-end interaction from Python agent prompt.
-3. Test the full flow of paying a bill via the UI.
+2. Verify `confirmPayment`/`confirmTransfer` RPC round-trip end-to-end (approve and cancel paths).
+3. Verify `show_options` end-to-end interaction from Python agent prompt.

@@ -1,7 +1,13 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getTransfersOptions, postTransfersMutation } from "@/gen/api/@tanstack/react-query.gen";
+import { 
+  getTransfersOptions, 
+  postTransfersMutation,
+  getTransfersQueryKey,
+  getBankAccountsQueryKey,
+  getTransactionsQueryKey
+} from "@/gen/api/@tanstack/react-query.gen";
 import type { PostTransfersData } from "@/gen/api/types.gen";
 
 export function useTransfers() {
@@ -12,10 +18,10 @@ export function useTransfers() {
   const executeMutation = useMutation({
     ...postTransfersMutation(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['getTransfers'] });
+      queryClient.invalidateQueries({ queryKey: getTransfersQueryKey() });
       // Transfers affect balances and transactions
-      queryClient.invalidateQueries({ queryKey: ['getBankAccounts'] });
-      queryClient.invalidateQueries({ queryKey: ['getTransactions'] });
+      queryClient.invalidateQueries({ queryKey: getBankAccountsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getTransactionsQueryKey() });
     },
   });
 

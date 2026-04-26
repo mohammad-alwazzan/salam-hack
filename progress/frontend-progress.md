@@ -31,6 +31,7 @@
 - [x] `agent/_components/` (FinancialStrip, ToolCallBanner, OptionsSelector) ✅
 - [x] `agents-ui/approval-sheet.tsx` ✅
 - [x] `voice/_components/ToolCallBanner.tsx` wired to LiveKit `tool_start`/`tool_end` events ✅
+- [x] `voice/page.tsx` registers `confirmPayment` + `confirmTransfer` RPC methods and resolves them through `ApprovalSheet` ✅
 
 ## Next Steps
 - [x] Light-theme baseline applied (`THEME.md` updated + forced `.dark` removed from AppProviders) ✅

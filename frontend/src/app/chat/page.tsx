@@ -32,9 +32,12 @@ export default function ChatPage() {
     sendMessage,
     setCurrentTool,
     isLoading,
+    status,
     currentTool,
     addToolOutput,
   } = useAgentChat();
+
+  console.log(currentTool);
   const { budget } = useBudget();
   const { accounts } = useBankAccounts();
 
@@ -46,15 +49,22 @@ export default function ChatPage() {
   const hasMessages = uiMessages.length > 0;
 
   const showOptionsData =
-    currentTool?.toolName === 'showOptions'
+    currentTool?.toolName === 'showOptions' && status === 'ready'
       ? (currentTool.input as ShowOptionsInput)
       : null;
 
-  const handleOptionSelect = (label: string, value: string) => {
+  const handleOptionSelect = async (label: string, value: string) => {
     if (currentTool?.toolName === 'showOptions') {
       const toolCallId = currentTool.toolCallId;
+      await addToolOutput({
+        tool: currentTool.toolName,
+        toolCallId,
+        output: {
+          selectedLabel: label,
+          selectedValue: value,
+        },
+      });
       setCurrentTool(null);
-      addToolOutput({ toolCallId, tool: currentTool.toolName, output: { label, value } });
     }
   };
 
@@ -82,20 +92,35 @@ export default function ChatPage() {
           role: message.role,
           text: getTextFromMessage(message),
         }))
-        .filter((message) => message.role !== 'system' && message.text.trim().length > 0),
+        .filter(
+          (message) =>
+            message.role !== 'system' && message.text.trim().length > 0,
+        ),
     [uiMessages],
   );
 
   const budgetSummary = useMemo(() => {
     if (!budget) return null;
-    const totalAllocated = budget.categories.reduce((acc, cat) => acc + cat.allocated, 0);
-    const totalSpent = budget.categories.reduce((acc, cat) => acc + cat.spent, 0);
+    const totalAllocated = budget.categories.reduce(
+      (acc, cat) => acc + cat.allocated,
+      0,
+    );
+    const totalSpent = budget.categories.reduce(
+      (acc, cat) => acc + cat.spent,
+      0,
+    );
     const remaining = totalAllocated - totalSpent;
-    const usedPct = totalAllocated > 0 ? Math.min(100, (totalSpent / totalAllocated) * 100) : 0;
+    const usedPct =
+      totalAllocated > 0
+        ? Math.min(100, (totalSpent / totalAllocated) * 100)
+        : 0;
     const topCategories = [...budget.categories]
       .sort((a, b) => b.spent - a.spent)
       .slice(0, 3);
-    const totalBalance = accounts.reduce((acc, account) => acc + account.balance, 0);
+    const totalBalance = accounts.reduce(
+      (acc, account) => acc + account.balance,
+      0,
+    );
     return {
       month: budget.month,
       totalAllocated,
@@ -132,20 +157,31 @@ export default function ChatPage() {
           </Link>
           <div className="flex-1" />
           <div className="flex flex-col items-end">
-            <span className="text-sm font-semibold tracking-tight">Mizan Chat</span>
-            <span className="text-[10px] leading-none text-muted-foreground">Text AI Assistant</span>
+            <span className="text-sm font-semibold tracking-tight">
+              Mizan Chat
+            </span>
+            <span className="text-[10px] leading-none text-muted-foreground">
+              Text AI Assistant
+            </span>
           </div>
         </div>
       </header>
 
-      <main ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+      <main
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-4 py-6 sm:px-6"
+      >
         <div className="mx-auto w-full max-w-2xl space-y-4">
           {budgetSummary && (
             <div className="rounded-2xl border border-border/70 bg-card p-5 sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm text-muted-foreground">{budgetSummary.month}</p>
-                  <p className="mt-1 text-base font-medium text-muted-foreground">Budget Snapshot</p>
+                  <p className="text-sm text-muted-foreground">
+                    {budgetSummary.month}
+                  </p>
+                  <p className="mt-1 text-base font-medium text-muted-foreground">
+                    Budget Snapshot
+                  </p>
                 </div>
                 <Badge variant="outline" className="rounded-full">
                   {Math.round(budgetSummary.usedPct)}% used
@@ -153,16 +189,28 @@ export default function ChatPage() {
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl border border-border/70 bg-background p-3">
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Balance</p>
-                  <p className="mt-1 text-sm font-semibold">{budgetSummary.totalBalance.toLocaleString()} USD</p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Balance
+                  </p>
+                  <p className="mt-1 text-sm font-semibold">
+                    {budgetSummary.totalBalance.toLocaleString()} USD
+                  </p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Expenses</p>
-                  <p className="mt-1 text-sm font-semibold">{budgetSummary.totalSpent.toLocaleString()} USD</p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Expenses
+                  </p>
+                  <p className="mt-1 text-sm font-semibold">
+                    {budgetSummary.totalSpent.toLocaleString()} USD
+                  </p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total</p>
-                  <p className="mt-1 text-sm font-semibold">{budgetSummary.totalAllocated.toLocaleString()} USD</p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Total
+                  </p>
+                  <p className="mt-1 text-sm font-semibold">
+                    {budgetSummary.totalAllocated.toLocaleString()} USD
+                  </p>
                 </div>
               </div>
               <Progress value={budgetSummary.usedPct} className="mt-4 h-2" />
@@ -171,9 +219,11 @@ export default function ChatPage() {
 
           {!hasMessages && (
             <div className="rounded-2xl border border-border/70 bg-card p-5 sm:p-6">
-              <p className="text-lg font-semibold">How can I help with your finances?</p>
+              <p className="text-lg font-semibold">
+                How can I help with your finances?
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Tap a suggestion to start quickly, or type your own message.
+                Tap a suggestion to start quickly, or type your message below.
               </p>
               <div className="mt-4 grid grid-cols-1 gap-2">
                 {EMPTY_PROMPTS.map((prompt) => (
@@ -193,7 +243,10 @@ export default function ChatPage() {
           {renderedMessages.map((message) => {
             const isUser = message.role === 'user';
             return (
-              <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+              <div
+                key={message.id}
+                className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+              >
                 <div
                   className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     isUser
@@ -220,16 +273,16 @@ export default function ChatPage() {
       <div className="relative shrink-0 border-t border-border/40 bg-background px-4 py-4 sm:px-6">
         <OptionsSelector data={showOptionsData} onSelect={handleOptionSelect} />
         <div className="mx-auto w-full max-w-2xl">
-          <div className="flex items-end gap-2 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-sm">
+          <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-card px-4 py-2.5 shadow-sm">
             <textarea
               ref={textareaRef}
               rows={1}
               value={input}
               disabled={isLoading}
-              placeholder="Ask about your finances..."
+              placeholder="Type your message..."
               onKeyDown={handleKeyDown}
               onChange={(e) => setInput(e.target.value)}
-              className="max-h-32 flex-1 resize-none overflow-hidden bg-transparent text-sm leading-relaxed focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-muted-foreground/70"
+              className="max-h-32 flex-1 resize-none overflow-hidden bg-transparent py-1 text-sm leading-5 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-muted-foreground/70"
             />
             <Button
               size="icon"
@@ -238,9 +291,13 @@ export default function ChatPage() {
               variant={isDisabled ? 'secondary' : 'default'}
               title="Send"
               onClick={() => void handleSend()}
-              className="size-9 shrink-0 rounded-xl self-end"
+              className="size-9 shrink-0 rounded-xl"
             >
-              {isLoading ? <Loader2 className="size-4 animate-spin" /> : <SendHorizontal className="size-4" />}
+              {isLoading ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <SendHorizontal className="size-4" />
+              )}
             </Button>
           </div>
         </div>

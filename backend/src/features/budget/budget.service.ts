@@ -8,7 +8,7 @@ export const budgetService = {
     if (!month) return null;
 
     const categories = await budgetRepository.getCategories(month.id);
-    const spentData = await budgetRepository.getSpentByCategory(month.id);
+    const spentData = await budgetRepository.getSpentByCategory(month.id, month.month);
 
     const categoriesWithSpent = categories.map(cat => {
       const spent = spentData.find(s => s.categoryId === cat.id)?.spent || 0;
@@ -30,23 +30,46 @@ export const budgetService = {
     const budget = await this.getCurrentBudget();
     if (!budget) throw new Error('No budget found');
 
-    // For simplicity, we compare against the category with the most remaining balance or a general discretionary category
-    const discretionary = budget.categories.find(c => c.type === 'discretionary') || budget.categories[0];
-    
-    const remainingBefore = discretionary.remaining;
-    const remainingAfter = remainingBefore - amount;
-    const percentOfBudgetUsedAfter = (discretionary.spent + amount) / discretionary.allocated;
+    const discretionaryCategories = budget.categories.filter(c => c.type === 'discretionary');
+    // Savings goals: fixed categories that are not top-priority obligations (remittances/rent)
+    const savingsGoals = budget.categories.filter(c => c.type === 'fixed' && c.priority > 1);
 
-    let verdict = 'You can afford this!';
-    if (remainingAfter < 0) verdict = 'This will put you over budget for this category.';
-    else if (percentOfBudgetUsedAfter > 0.9) verdict = 'This is within budget but getting close to your limit.';
+    const totalDiscretionaryRemaining = discretionaryCategories.reduce((sum, c) => sum + c.remaining, 0);
+    const remainingBefore = totalDiscretionaryRemaining;
+    const remainingAfter = remainingBefore - amount;
+
+    // Most impacted: discretionary category with most remaining balance
+    const sortedDiscretionary = [...discretionaryCategories].sort((a, b) => b.remaining - a.remaining);
+    const mostImpacted = sortedDiscretionary[0] ?? budget.categories[0];
+
+    let verdict: 'comfortable' | 'tight' | 'over';
+    if (remainingAfter < 0) {
+      verdict = 'over';
+    } else if (remainingAfter < totalDiscretionaryRemaining * 0.15) {
+      verdict = 'tight';
+    } else {
+      verdict = 'comfortable';
+    }
+
+    // Show impact on the primary savings goal (e.g. wedding fund)
+    const primaryGoal = savingsGoals[0] ?? null;
+    const goalImpact = primaryGoal ? {
+      goalName: primaryGoal.name,
+      goalAllocated: primaryGoal.allocated,
+      goalSpent: primaryGoal.spent,
+      goalRemaining: primaryGoal.remaining,
+      atRisk: amount > totalDiscretionaryRemaining,
+    } : null;
 
     return {
       remainingBefore,
       remainingAfter,
-      percentOfBudgetUsedAfter,
+      percentOfBudgetUsedAfter: mostImpacted
+        ? (mostImpacted.spent + amount) / mostImpacted.allocated
+        : 1,
       verdict,
-      mostImpactedCategory: discretionary.name,
+      mostImpactedCategory: mostImpacted?.name ?? 'General',
+      goalImpact,
     };
   },
 
