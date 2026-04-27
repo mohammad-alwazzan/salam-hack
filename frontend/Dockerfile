@@ -1,4 +1,4 @@
-# Stage 1: Install dependencies (native addon compilation requires build tools)
+# Stage 1: Install dependencies
 FROM oven/bun:1 AS deps
 WORKDIR /app
 
@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
   g++ \
   && rm -rf /var/lib/apt/lists/*
 
-COPY package.json bun.lockb ./
+COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 # Stage 2: Build Next.js
@@ -27,11 +27,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/src/worker ./src/worker
-COPY package.json next.config.ts tsconfig.json ./
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/next.config.ts ./next.config.ts
 
 EXPOSE 3000
 
